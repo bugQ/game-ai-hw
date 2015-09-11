@@ -13,9 +13,9 @@ type alias Circle = {
  }
 
 -- whether they intersect, plus closest point on rect
-circlexOBR : Circle -> OBR -> (Bool, Vec2)
+circlexOBR : Circle -> OBR -> Maybe Vec2
 circlexOBR circ obr = let p = OBR.nearestPoint obr circ.o in
-  (sqnorm (p .-. circ.o) <= circ.r * circ.r, p)
+  if sqnorm (p .-. circ.o) > circ.r * circ.r then Nothing else Just p
 
 terrain : List Circle
 terrain = [
