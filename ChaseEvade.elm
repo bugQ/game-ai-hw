@@ -43,23 +43,24 @@ type alias Simulation = {
   reset : Float
 }
 
-simulate : Time -> Simulation -> Simulation
-simulate t sim = if sim.reset > 10 then
-  let
-   (r0, seed1) = generate sim.rand sim.seed
-   (r1, seed2) = generate sim.rand seed1
-   (r2, seed3) = generate sim.rand seed2
-   (r3, seed4) = generate sim.rand seed3
-  in
-  { sim |
-   quarry <- {pos = r0 .* 200, v = r1 .* 40, a = (0, 0)},
-   target <- r0 .* 200 .+. r1 .* 40,
-   chaser <- {pos = r2 .* 200, v = (0, 0), a = (0, 0)},
-   evader <- {pos = r3 .* 200, v = (0, 0), a = (0, 0)},
-   reset <- 0,
-   seed <- seed4
+initSim : Generator Vec2 -> Seed -> Simulation
+initSim rand seed = let
+  (r0, seed1) = generate rand seed
+  (r1, seed2) = generate rand seed1
+  (r2, seed3) = generate rand seed2
+  (r3, seed4) = generate rand seed3
+ in {
+   quarry = {pos = r0 .* 200, v = r1 .* 40, a = (0, 0)},
+   target = r0 .* 200 .+. r1 .* 40,
+   chaser = {pos = r2 .* 200, v = (0, 0), a = (0, 0)},
+   evader = {pos = r3 .* 200, v = (0, 0), a = (0, 0)},
+   rand = rand,
+   seed = seed4,
+   reset = 0
   }
- else
+
+simulate : Time -> Simulation -> Simulation
+simulate t sim = if sim.reset > 10 then initSim sim.rand sim.seed else
   let dt = (inSeconds t) in
   { sim |
    quarry <- sim.quarry |> physics dt,
