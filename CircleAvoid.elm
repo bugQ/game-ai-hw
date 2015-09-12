@@ -1,8 +1,10 @@
 module CircleAvoid where
 
-import List exposing (map, foldr)
+import List exposing (map, foldr, filterMap, minimum)
 import Color exposing (..)
 import Graphics.Collage exposing (..)
+import Time exposing (Time, inSeconds)
+
 import Vec2 exposing (..)
 import OBR exposing (OBR, drawOBR)
 import ChaseEvade exposing (Actor, drawActor, physics, maxV, maxA)
@@ -13,9 +15,9 @@ type alias Circle = {
  }
 
 -- whether they intersect, plus closest point on rect
-circlexOBR : Circle -> OBR -> Maybe Vec2
-circlexOBR circ obr = let p = OBR.nearestPoint obr circ.o in
-  if sqnorm (p .-. circ.o) > circ.r * circ.r then Nothing else Just p
+colldeOBRxCircle : OBR -> Circle -> Maybe Vec2
+colldeOBRxCircle obr circ = let p = OBR.nearestPoint obr circ.o in
+  if sqnorm (p .-. circ.o) > circ.r then Nothing else Just p
 
 terrain : List Circle
 terrain = [
@@ -48,10 +50,35 @@ futureProj actor = let
  in
   { center = actor.pos .+. r, direction = nx, apothems = (rf, 10) }
 
-initActor : Actor
-initActor = { pos = (0, 10), v = (maxV, 0), a = (-15, 15) }
+type alias Driver = { vehicle : Actor, vision : OBR }
+type alias Simulation = { driver : Driver, terrain : List Circle }
 
-main = collage 400 400 <|
-  (foldr (++) (drawActor green initActor) <|
-   map (drawObstacle grey) terrain) ++
-  drawOBR (solid yellow) (futureProj initActor)
+-- distance from actor and projected point of collision, or nothing
+nearestFutureCollision : Simulation -> Maybe Vec2
+nearestFutureCollision sim =
+  filterMap (colldeOBRxCircle sim.driver.vision) sim.terrain |>
+    map (\p -> (norm (sim.driver.vehicle.pos .-. p), p)) |>
+    minimum |> Maybe.map snd
+
+avoid : Vec2 -> Driver -> Driver
+avoid p driver = let
+  r = (p .-. driver.vehicle.pos)
+  dir = driver.vision.direction
+  urgency = 2 * (fst driver.vision.apothems) - norm r
+  steering = perp <| dir .*
+    if (dir `cross` r) > 0 then urgency else -urgency
+  braking = urgency * -urgency *. dir
+  newA = steering .+. braking |> clamp2 0 maxA
+  oldActor = driver.vehicle -- needed to get around parser limitation
+  newActor = { oldActor | a <- newA } -- can't just put driver.actor here :\
+ in
+  { driver | vehicle <- newActor }
+
+simulate : Time -> Simulation -> Simulation
+simulate t sim = let
+  dt = (inSeconds t)
+  evasiveDriver = case (nearestFutureCollision sim) of
+    Just p -> sim.driver |> avoid p
+    Nothing -> sim.driver
+ in { sim | driver <-
+   { evasiveDriver | vehicle <- physics dt evasiveDriver.vehicle } }
