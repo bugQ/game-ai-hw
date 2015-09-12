@@ -3,6 +3,7 @@ module CircleAvoid where
 import List exposing (map, foldr, filterMap, minimum)
 import Color exposing (..)
 import Graphics.Collage exposing (..)
+import Graphics.Element exposing (Element)
 import Time exposing (Time, inSeconds)
 
 import Vec2 exposing (..)
@@ -74,11 +75,39 @@ avoid p driver = let
  in
   { driver | vehicle <- newActor }
 
+-- toroidal wrapping (modulus-like)
+wrap : Float -> Float -> Float -> Float
+wrap min max x = let len = max - min in
+  if x < min then x + len else if x > max then x - len else x
+wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
+wrap2 min max p = (
+  wrap (fst min) (fst max) (fst p), wrap (snd min) (snd max) (snd p))
+
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = (inSeconds t)
   evasiveDriver = case (nearestFutureCollision sim) of
     Just p -> sim.driver |> avoid p
     Nothing -> sim.driver
+  movedActor = physics dt evasiveDriver.vehicle
+  newActor = { movedActor |
+    pos <- wrap2 (-200, -200) (200, 200) movedActor.pos }
+  newOBR = futureProj newActor
  in { sim | driver <-
-   { evasiveDriver | vehicle <- physics dt evasiveDriver.vehicle } }
+   { evasiveDriver | vehicle <- newActor, vision <- newOBR } }
+
+initSim : Simulation
+initSim = let initActor = { pos = (0, 10), v = (maxV, 0), a = (0, 0) } in
+ {
+  driver = {
+    vehicle = initActor,
+    vision = futureProj initActor
+   },
+  terrain = terrain
+ }
+
+drawSim : Simulation -> Element
+drawSim sim = collage 400 400 <|
+  (foldr (++) (drawActor green sim.driver.vehicle) <|
+   map (drawObstacle grey) sim.terrain) ++
+  drawOBR (solid yellow) sim.driver.vision
