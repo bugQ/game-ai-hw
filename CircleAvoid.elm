@@ -16,8 +16,8 @@ type alias Circle = {
  }
 
 -- whether they intersect, plus closest point on rect
-colldeOBRxCircle : OBR -> Circle -> Maybe Vec2
-colldeOBRxCircle obr circ = let p = OBR.nearestPoint obr circ.o in
+collideOBRxCircle : OBR -> Circle -> Maybe Vec2
+collideOBRxCircle obr circ = let p = OBR.nearestPoint obr circ.o in
   if sqnorm (p .-. circ.o) > circ.r then Nothing else Just p
 
 terrain : List Circle
@@ -57,7 +57,7 @@ type alias Simulation = { driver : Driver, terrain : List Circle }
 -- distance from actor and projected point of collision, or nothing
 nearestFutureCollision : Simulation -> Maybe Vec2
 nearestFutureCollision sim =
-  filterMap (colldeOBRxCircle sim.driver.vision) sim.terrain |>
+  filterMap (collideOBRxCircle sim.driver.vision) sim.terrain |>
     map (\p -> (norm (sim.driver.vehicle.pos .-. p), p)) |>
     minimum |> Maybe.map snd
 
