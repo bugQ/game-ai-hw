@@ -13,8 +13,8 @@ type alias Actor = {
   a : Vec2
 }
 
-maxA = 50
-maxV = 100
+maxA = 80
+maxV = 120
 
 chase : Vec2 -> Actor -> Actor
 chase target chaser = { chaser |
@@ -73,8 +73,8 @@ simulate t sim = if sim.reset > 10 then initSim sim.rand sim.seed else
 
 drawActor : Color -> Actor -> List Form
 drawActor color actor = [
-  filled color (circle 10) |> move actor.pos,
-  outlined (solid charcoal) (circle 10) |> move actor.pos, 
+  filled color (circle 8) |> move actor.pos,
+  outlined (solid charcoal) (circle 8) |> move actor.pos, 
   traced (solid red) <| segment actor.pos (actor.pos .+. actor.v),
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]

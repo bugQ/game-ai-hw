@@ -7,7 +7,7 @@ import Graphics.Element exposing (Element)
 import Time exposing (Time, inSeconds)
 
 import Vec2 exposing (..)
-import OBR exposing (OBR, drawOBR)
+import OBR exposing (..)
 import ChaseEvade exposing (Actor, drawActor, physics, maxV, maxA)
 
 type alias Circle = {
@@ -17,8 +17,8 @@ type alias Circle = {
 
 -- whether they intersect, plus closest point on rect
 collideOBRxCircle : OBR -> Circle -> Maybe Vec2
-collideOBRxCircle obr circ = let p = OBR.nearestPoint obr circ.o in
-  if sqnorm (p .-. circ.o) > circ.r then Nothing else Just p
+collideOBRxCircle obr circ = let p = nearestPointOBR obr circ.o in
+  if sqnorm (p .-. circ.o) > circ.r * circ.r then Nothing else Just p
 
 terrain : List Circle
 terrain = [
@@ -28,7 +28,7 @@ terrain = [
   {o = (200, 200), r = 50},
   {o = (50, -70), r = 80},
   {o = (-120, 120), r = 25},
-  {o = (-95, 25), r = 40},
+  {o = (-85, 25), r = 40},
   {o = (12, 107), r = 50},
   {o = (123, 55), r = 30},
   {o = (-125, -75), r = 30},
@@ -42,14 +42,15 @@ drawObstacle color circ = [
   move circ.o <| outlined (solid charcoal) <| circle circ.r
  ]
 
+maxBrakeTime = maxV / (2 * maxA)
+
 futureProj : Actor -> OBR
 futureProj actor = let
-  sqv = sqnorm actor.v
-  nx = actor.v ./ sqrt sqv
-  rf = sqv / (4 * maxA)
-  r = rf *. nx
+  r = maxBrakeTime *. actor.v
+  d = norm r
+  n = r ./ d
  in
-  { center = actor.pos .+. r, direction = nx, apothems = (rf, 10) }
+  { o = actor.pos .+. r ./ 2, dir = n, size = (d, 16) }
 
 type alias Driver = { vehicle : Actor, vision : OBR }
 type alias Simulation = { driver : Driver, terrain : List Circle }
@@ -63,17 +64,21 @@ nearestFutureCollision sim =
 
 avoid : Vec2 -> Driver -> Driver
 avoid p driver = let
-  r = (p .-. driver.vehicle.pos)
-  dir = driver.vision.direction
-  urgency = 2 * (fst driver.vision.apothems) - norm r
-  steering = perp <| dir .*
-    if (dir `cross` r) > 0 then urgency else -urgency
+  r = p .-. driver.vehicle.pos
+  dir = driver.vision.dir
+  urgency = fst driver.vision.size / norm r / 2
+  avoidV = perp dir .* if dir `cross` r > 0 then -urgency else urgency
+  steering = avoidV .* maxV .-. driver.vehicle.v
   braking = urgency * -urgency *. dir
-  newA = steering .+. braking |> clamp2 0 maxA
+  newA = 2 * maxA *. (steering .+. braking) |> clamp2 0 maxA
   oldActor = driver.vehicle -- needed to get around parser limitation
   newActor = { oldActor | a <- newA } -- can't just put driver.actor here :\
  in
   { driver | vehicle <- newActor }
+
+accel : Driver -> Driver
+accel driver = let oldActor = driver.vehicle in
+  { driver | vehicle <- { oldActor | a <- normalize oldActor.v .* maxA } }
 
 -- toroidal wrapping (modulus-like)
 wrap : Float -> Float -> Float -> Float
@@ -88,7 +93,7 @@ simulate t sim = let
   dt = (inSeconds t)
   evasiveDriver = case (nearestFutureCollision sim) of
     Just p -> sim.driver |> avoid p
-    Nothing -> sim.driver
+    Nothing -> sim.driver |> accel
   movedActor = physics dt evasiveDriver.vehicle
   newActor = { movedActor |
     pos <- wrap2 (-200, -200) (200, 200) movedActor.pos }
