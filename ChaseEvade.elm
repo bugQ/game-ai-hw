@@ -5,33 +5,12 @@ import Graphics.Collage exposing (..)
 import Graphics.Element exposing (Element)
 import Random exposing (Generator, generate, initialSeed, Seed)
 import Time exposing (..)
+
 import Vec2 exposing (..)
+import ClassicalEngine exposing (..)
 
-type alias Actor = {
-  pos : Vec2,
-  v : Vec2,
-  a : Vec2
-}
 
-maxA = 80
-maxV = 120
-
-chase : Vec2 -> Actor -> Actor
-chase target chaser = { chaser |
-  a <- normalize (target .-. chaser.pos) .* maxV .-. chaser.v
-    |> clamp2 0 maxA }
-
-evade : Vec2 -> Actor -> Actor
-evade target evader = { evader |
-  a <- normalize (target .-. evader.pos) .* -maxV .-. evader.v
-    |> clamp2 0 maxA }
-
-physics : Float -> Actor -> Actor
-physics dt actor = { actor |
-  pos <- actor.pos .+. actor.v .* dt,
-  v <- actor.v .+. actor.a .* dt |> clamp2 0 maxV
- }
- 
+--- Structures ---
 
 type alias Simulation = {
   quarry : Actor,
@@ -43,9 +22,31 @@ type alias Simulation = {
   reset : Float
 }
 
+
+--- Constants ---
+
+maxA = 50
+maxV = 100
+
+
+--- Behavior ---
+
+chase : Vec2 -> Actor -> Actor
+chase target chaser = { chaser |
+  a <- normalize (target .-. chaser.pos) .* maxV .-. chaser.v
+    |> clamp2 0 maxA }
+
+evade : Vec2 -> Actor -> Actor
+evade target evader = { evader |
+  a <- normalize (target .-. evader.pos) .* -maxV .-. evader.v
+    |> clamp2 0 maxA }
+
+
+--- Simulation ---
+
 initSim : Generator Vec2 -> Seed -> Simulation
-initSim rand seed = let
-  (r0, seed1) = generate rand seed
+initSim rand seed0 = let
+  (r0, seed1) = generate rand seed0
   (r1, seed2) = generate rand seed1
   (r2, seed3) = generate rand seed2
   (r3, seed4) = generate rand seed3
@@ -63,21 +64,16 @@ simulate : Time -> Simulation -> Simulation
 simulate t sim = if sim.reset > 10 then initSim sim.rand sim.seed else
   let dt = (inSeconds t) in
   { sim |
-   quarry <- sim.quarry |> physics dt,
+   quarry <- sim.quarry |> stepActor maxV dt,
    target <- sim.quarry.pos .+. sim.quarry.v .*
      (dist sim.target sim.chaser.pos / maxV),
-   chaser <- sim.chaser |> chase sim.target |> physics dt,
-   evader <- sim.evader |> evade sim.target |> physics dt,
+   chaser <- sim.chaser |> chase sim.target |> stepActor maxV dt,
+   evader <- sim.evader |> evade sim.target |> stepActor maxV dt,
    reset <- sim.reset + (inSeconds t)
   }
 
-drawActor : Color -> Actor -> List Form
-drawActor color actor = [
-  filled color (circle 8) |> move actor.pos,
-  outlined (solid charcoal) (circle 8) |> move actor.pos, 
-  traced (solid red) <| segment actor.pos (actor.pos .+. actor.v),
-  traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
- ]
+
+--- Drawing ---
 
 drawTarget : LineStyle -> Vec2 -> List Form
 drawTarget style target = [
@@ -90,7 +86,7 @@ drawTarget style target = [
 drawSim : Simulation -> Element
 drawSim sim = collage 500 500 (
   drawTarget (solid black) sim.target ++
-  drawActor grey sim.quarry ++
-  drawActor red sim.chaser ++
-  drawActor yellow sim.evader
+  drawVehicle grey sim.quarry ++
+  drawVehicle red sim.chaser ++
+  drawVehicle yellow sim.evader
  )

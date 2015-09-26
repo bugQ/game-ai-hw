@@ -7,18 +7,23 @@ import Graphics.Element exposing (Element)
 import Time exposing (Time, inSeconds)
 
 import Vec2 exposing (..)
-import OBR exposing (..)
-import ChaseEvade exposing (Actor, drawActor, physics, maxV, maxA)
+import ClassicalEngine exposing (..)
 
-type alias Circle = {
-  o : Vec2,
-  r : Float
- }
 
--- whether they intersect, plus closest point on rect
-collideOBRxCircle : OBR -> Circle -> Maybe Vec2
-collideOBRxCircle obr circ = let p = nearestPointOBR obr circ.o in
-  if sqnorm (p .-. circ.o) > circ.r * circ.r then Nothing else Just p
+--- Structures ---
+
+type alias Driver = {
+  vehicle : Actor,
+  vision : OBR  -- a box represents their line of sight
+}
+
+type alias Simulation = {
+  driver : Driver,
+  terrain : List Circle
+}
+
+
+--- Constants ---
 
 terrain : List Circle
 terrain = [
@@ -36,14 +41,15 @@ terrain = [
   {o = (123, 130), r = 13}
  ]
 
-drawObstacle : Color -> Circle -> List Form
-drawObstacle color circ = [
-  move circ.o <| filled color <| circle circ.r,
-  move circ.o <| outlined (solid charcoal) <| circle circ.r
- ]
+maxA = 80
+maxV = 120
 
 maxBrakeTime = maxV / (2 * maxA)
 
+
+-- Behavior --
+
+-- generates line of sight based on current speed
 futureProj : Actor -> OBR
 futureProj actor = let
   r = maxBrakeTime *. actor.v
@@ -51,9 +57,6 @@ futureProj actor = let
   n = r ./ d
  in
   { o = actor.pos .+. r ./ 2, dir = n, size = (d, 16) }
-
-type alias Driver = { vehicle : Actor, vision : OBR }
-type alias Simulation = { driver : Driver, terrain : List Circle }
 
 -- distance from actor and projected point of collision, or nothing
 nearestFutureCollision : Simulation -> Maybe Vec2
@@ -80,6 +83,9 @@ accel : Driver -> Driver
 accel driver = let oldActor = driver.vehicle in
   { driver | vehicle <- { oldActor | a <- normalize oldActor.v .* maxA } }
 
+
+-- Simulation --
+
 -- toroidal wrapping (modulus-like)
 wrap : Float -> Float -> Float -> Float
 wrap min max x = let len = max - min in
@@ -87,14 +93,14 @@ wrap min max x = let len = max - min in
 wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
 wrap2 min max p = (
   wrap (fst min) (fst max) (fst p), wrap (snd min) (snd max) (snd p))
-
+  
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = (inSeconds t)
   evasiveDriver = case (nearestFutureCollision sim) of
     Just p -> sim.driver |> avoid p
     Nothing -> sim.driver |> accel
-  movedActor = physics dt evasiveDriver.vehicle
+  movedActor = stepActor maxV dt evasiveDriver.vehicle
   newActor = { movedActor |
     pos <- wrap2 (-200, -200) (200, 200) movedActor.pos }
   newOBR = futureProj newActor
@@ -111,8 +117,11 @@ initSim = let initActor = { pos = (0, 10), v = (maxV, 0), a = (0, 0) } in
   terrain = terrain
  }
 
+
+-- Drawing --
+
 drawSim : Simulation -> Element
 drawSim sim = collage 400 400 <|
-  (foldr (++) (drawActor green sim.driver.vehicle) <|
+  (foldr (++) (drawVehicle green sim.driver.vehicle) <|
    map (drawObstacle grey) sim.terrain) ++
   drawOBR (solid yellow) sim.driver.vision
