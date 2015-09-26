@@ -44,8 +44,9 @@ evade target evader = { evader |
 
 --- Simulation ---
 
-initSim : Generator Vec2 -> Seed -> Simulation
-initSim rand seed0 = let
+initSim : Seed -> Simulation
+initSim seed0 = let
+  rand = Random.pair (Random.float -1 1) (Random.float -1 1)
   (r0, seed1) = generate rand seed0
   (r1, seed2) = generate rand seed1
   (r2, seed3) = generate rand seed2
