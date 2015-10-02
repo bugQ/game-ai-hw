@@ -93,7 +93,7 @@ wrap min max x = let len = max - min in
 wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
 wrap2 min max p = (
   wrap (fst min) (fst max) (fst p), wrap (snd min) (snd max) (snd p))
-  
+
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = (inSeconds t)
