@@ -70,6 +70,21 @@ drawVehicle color actor = [
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]
 
+drawBoid : Color -> Actor -> List Form
+drawBoid color actor = let
+  vdir = normalize actor.v
+  vperp = perp vdir
+  boidtriangle = polygon [
+    actor.pos .+. 10 *. vdir,
+    actor.pos .-. 3 *. vdir .+. 4 *. vperp,
+    actor.pos .-. 3 *. vdir .-. 4 *. vperp
+  ]
+ in [
+  boidtriangle |> filled color,
+  boidtriangle |> outlined (solid charcoal),
+  segment actor.pos (actor.pos .+. actor.a) |> traced (solid blue)
+ ]
+
 drawObstacle : Color -> Circle -> List Form
 drawObstacle color circ = [
   circle circ.r |> filled color |> move circ.o,
