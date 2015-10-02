@@ -1,6 +1,6 @@
 module CircleAvoid where
 
-import List exposing (map, foldr, filterMap, minimum)
+import List exposing (map, foldl, filterMap, minimum)
 import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (Element)
@@ -122,6 +122,6 @@ initSim = let initActor = { pos = (0, 10), v = (maxV, 0), a = (0, 0) } in
 
 drawSim : Simulation -> Element
 drawSim sim = collage 400 400 <|
-  (foldr (++) (drawVehicle green sim.driver.vehicle) <|
+  (foldl (++) (drawVehicle green sim.driver.vehicle) <|
    map (drawObstacle grey) sim.terrain) ++
   drawOBR (solid yellow) sim.driver.vision
