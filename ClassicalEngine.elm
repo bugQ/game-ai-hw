@@ -80,8 +80,8 @@ drawVehicle color actor = [
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]
 
-drawBoid : Color -> Actor -> List Form
-drawBoid color actor = let
+drawBoid : Color -> Bool -> Actor -> List Form
+drawBoid color showV actor = let
   vdir = normalize actor.v
   vperp = perp vdir
   boidtriangle = polygon [
@@ -91,9 +91,10 @@ drawBoid color actor = let
   ]
  in [
   boidtriangle |> filled color,
-  boidtriangle |> outlined (solid charcoal),
+  boidtriangle |> outlined (solid charcoal)
+ ] ++ if showV then [
   segment actor.pos (actor.pos .+. actor.a) |> traced (solid blue)
- ]
+ ] else []
 
 drawObstacle : Color -> Circle -> List Form
 drawObstacle color circ = [

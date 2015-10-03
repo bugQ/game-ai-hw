@@ -16,7 +16,8 @@ type alias Parameters = {
   separation : Float,
   alignment : Float,
   coherence : Float,
-  neighborhoodRadius : Float
+  neighborhoodRadius : Float,
+  drawVectors : Bool
 }
 
 type alias Simulation = {
@@ -33,10 +34,11 @@ defaults : Parameters
 defaults = {
   maxA = 70,
   maxV = 120,
-  separation = 15,
+  separation = 30,
   alignment = 15,
   coherence = 0.2,
-  neighborhoodRadius = 90
+  neighborhoodRadius = 90,
+  drawVectors = True
  }
 
 
@@ -114,5 +116,5 @@ worldWrap boid = { boid | pos <- wrap2 (-200, -200) (200, 200) boid.pos }
 
 --- Drawing ---
 drawSim : Simulation -> Element
-drawSim sim = collage 400 400 <|
-  List.foldl (++) [] <| List.map (drawBoid grey) sim.boids
+drawSim sim = collage 400 400 <| List.foldl (++) []
+  <| List.map (drawBoid grey sim.params.drawVectors) sim.boids
