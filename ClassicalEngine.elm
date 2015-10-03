@@ -20,7 +20,7 @@ type alias Circle = {
  }
 
 -- Oriented Bounding Rectangle, a rectangle in 2D
-type alias OBR = {  
+type alias OBR = {
   o : Vec2,  -- center point of the rectangle
   dir : Vec2,  -- local x axis; local y is perp to this
   size : Vec2  -- width and height
@@ -36,6 +36,16 @@ stepActor maxV dt actor = { actor |
   pos <- actor.pos .+. actor.v .* dt,
   v <- actor.v .+. actor.a .* dt |> clamp2 0 maxV
  }
+
+-- circular wrapping (one dimension)
+wrap : Float -> Float -> Float -> Float
+wrap min max x = let len = max - min in
+  if x < min then x + len else if x > max then x - len else x
+
+-- toroidal wrapping (two dimensions)
+wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
+wrap2 (xmin, ymin) (xmax, ymax) (x, y) =
+  (wrap xmin xmax x, wrap ymin ymax y)
 
 
 --- Collision ---
@@ -65,7 +75,7 @@ collideOBRxCircle obr circ = let p = nearestPointOBR obr circ.o in
 drawVehicle : Color -> Actor -> List Form
 drawVehicle color actor = [
   circle 8 |> filled color |> move actor.pos,
-  circle 8 |> outlined (solid charcoal) |> move actor.pos, 
+  circle 8 |> outlined (solid charcoal) |> move actor.pos,
   traced (solid red) <| segment actor.pos (actor.pos .+. actor.v),
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]
