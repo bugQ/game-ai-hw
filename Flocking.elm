@@ -34,7 +34,7 @@ defaults : Parameters
 defaults = {
   maxA = 70,
   maxV = 120,
-  separation = 30,
+  separation = 20,
   alignment = 15,
   coherence = 0.2,
   neighborhoodRadius = 90,
