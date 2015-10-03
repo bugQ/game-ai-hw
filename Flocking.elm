@@ -87,7 +87,7 @@ flocking : Float -> Float -> Float -> FlockBehavior
 flocking a b c r boid flock =
   a *. separation (r / 3) boid flock .+.
   b *. alignment r boid flock .+.
-  c *. cohesion (r / 2) boid flock
+  c *. cohesion (r * 2 / 3) boid flock
 
 
 --- Simulation ---
