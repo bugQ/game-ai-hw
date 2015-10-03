@@ -8,6 +8,7 @@ import Graphics.Element exposing (Element)
 import Time exposing (Time, inSeconds)
 import Color exposing (grey)
 
+
 --- Structures ---
 
 type alias Parameters = {
@@ -47,6 +48,7 @@ maxX = canvasW / 2
 minX = negate maxX
 maxY = canvasH / 2
 minY = negate maxY
+
 
 --- Behavior ---
 
@@ -114,7 +116,9 @@ simulate t sim = let
 worldWrap : Actor -> Actor
 worldWrap boid = { boid | pos <- wrap2 (minX, minY) (maxX, maxY) boid.pos }
 
+
 --- Drawing ---
+
 drawSim : Simulation -> Element
 drawSim sim = collage canvasW canvasH <| List.foldl (++) []
   <| List.map (drawBoid grey sim.params.drawVectors) sim.boids
