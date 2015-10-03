@@ -56,12 +56,6 @@ avoision r boid neighbor = let
  in
   r *. s ./ sqnorm s
 
-fixNaN : Float -> Float
-fixNaN a = if isNaN a then 0 else a
-
-fixNaN2 : Vec2 -> Vec2
-fixNaN2 (x, y) = (fixNaN x, fixNaN y)
-
 -- steering away from neighbors, inversely related to distance
 separation : FlockBehavior
 separation r boid = neighborhood r boid
