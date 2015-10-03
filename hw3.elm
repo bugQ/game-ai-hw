@@ -33,7 +33,7 @@ flockToggle address default actionType = input [
   type' "checkbox",
   checked default,
   on "change" targetChecked
-    (\a -> Signal.message address (DrawVectors a))
+    (\a -> Signal.message address (actionType a))
  ] []
 
 code = Char.fromCode >> String.fromChar
@@ -44,6 +44,7 @@ view address sim = div [] [
   drawSim sim |> fromElement,
   hr [] [],
   p [] [
+    button [ onClick address Default ] [ text "Default" ],
     button [ onClick address Reset ] [ text "Reset" ]
    ],
   p [] [
