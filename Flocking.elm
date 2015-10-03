@@ -36,11 +36,17 @@ defaults = {
   maxV = 120,
   separation = 20,
   alignment = 15,
-  coherence = 0.2,
+  coherence = 8,
   neighborhoodRadius = 90,
   drawVectors = True
  }
 
+canvasW = 600
+canvasH = 400
+maxX = canvasW / 2
+minX = negate maxX
+maxY = canvasH / 2
+minY = negate maxY
 
 --- Behavior ---
 
@@ -86,7 +92,7 @@ flocking a b c r boid flock =
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  rand1 = Random.pair (Random.float -200 200) (Random.float -200 200)
+  rand1 = Random.pair (Random.float minX maxX) (Random.float minY maxY)
   (poss, seed1) = generate (Random.list 60 rand1) seed0
   rand2 = Random.pair (Random.float -30 30) (Random.float -30 30)
   (vs, seed2) = generate (Random.list 60 rand2) seed1
@@ -106,9 +112,9 @@ simulate t sim = let
       } |> stepActor 120 dt |> worldWrap ) sim.boids }
 
 worldWrap : Actor -> Actor
-worldWrap boid = { boid | pos <- wrap2 (-200, -200) (200, 200) boid.pos }
+worldWrap boid = { boid | pos <- wrap2 (minX, minY) (maxX, maxY) boid.pos }
 
 --- Drawing ---
 drawSim : Simulation -> Element
-drawSim sim = collage 400 400 <| List.foldl (++) []
+drawSim sim = collage canvasW canvasH <| List.foldl (++) []
   <| List.map (drawBoid grey sim.params.drawVectors) sim.boids
