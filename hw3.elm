@@ -8,9 +8,11 @@ import Html.Events exposing (on, onClick, targetValue, targetChecked)
 import Effects exposing (Effects)
 import StartApp exposing (..)
 import String
+import Char
 
 type Action =
   Tick Time
+  | Neighbor Float
   | Separate Float
   | Align Float
   | Cohere Float
@@ -34,6 +36,10 @@ flockToggle address default actionType = input [
     (\a -> Signal.message address (DrawVectors a))
  ] []
 
+code = Char.fromCode >> String.fromChar
+oneThird = code 0x2153
+twoThirds = code 0x2154
+
 view address sim = div [] [
   drawSim sim |> fromElement,
   hr [] [],
@@ -45,11 +51,13 @@ view address sim = div [] [
     flockToggle address sim.params.drawVectors DrawVectors
    ],
   dl [] [
-    dt [] [text "separation"],
+    dt [] [text "neighborhood radius"],
+     dd [] [flockInput address sim.params.neighborhoodRadius Neighbor],
+    dt [] [text <| "separation (uses " ++ oneThird ++ " radius)"],
      dd [] [flockInput address sim.params.separation Separate],
-    dt [] [text "alignment"],
+    dt [] [text <| "alignment (uses full radius)"],
      dd [] [flockInput address sim.params.alignment Align],
-    dt [] [text "coherence"],
+    dt [] [text <| "coherence (uses " ++ twoThirds ++ " radius)"],
      dd [] [flockInput address sim.params.coherence Cohere]
    ]
  ]
@@ -62,6 +70,7 @@ update action sim = let params = sim.params in
   Tick dt -> simulate dt sim
   Reset -> { init | params <- sim.params }
   Default -> { sim | params <- defaults }
+  Neighbor r -> { sim | params <- { params | neighborhoodRadius <- r } }
   Separate c -> { sim | params <- { params | separation <- c } }
   Align c -> { sim | params <- { params | alignment <- c } }
   Cohere c -> { sim | params <- { params | coherence <- c } }
