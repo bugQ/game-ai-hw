@@ -1,0 +1,16 @@
+module ArrayToList where
+
+filter : (a -> Bool) -> Array a -> List a
+filter f aa = Array.foldl (\a aa -> if f a then a :: aa else aa) [] aa
+
+filterMap : (a -> Maybe b) -> Array a -> List b
+filterMap f aa = Array.foldl (\a bb -> f i a :: bb) (0, []) aa
+
+indexedMap : (Int -> a -> b) -> Array a -> List b
+indexedMap f aa = Array.foldl
+  (\a (i, bb) -> (i + 1, f i a :: bb)) (0, []) aa
+
+indexedFilterMap : (Int -> a -> Maybe b) -> Array a -> List b
+indexedFilterMap f aa = Array.foldl (\a (i, bb) -> case (f i a) of
+    Just b -> (i + 1, b :: bb)
+    Nothing -> (i + 1, bb)) (0, []) aa |> snd
