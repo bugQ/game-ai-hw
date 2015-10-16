@@ -12,9 +12,13 @@ import Grid exposing (Grid, Point, GridNode,
 import Random exposing (Generator, generate, Seed)
 import Heap exposing (Heap, findmin, deletemin)
 
+--- CONSTANTS ---
+
 gridW = 15
 gridH = 15
 maxBlocks = 60
+
+--- STRUCTURES ---
 
 type alias Simulation =
  { grid : Grid
@@ -30,6 +34,8 @@ type alias AStarState =
  , breadcrumbs : Array Int
  , running_cost : Array Float
  }
+
+--- BEHAVIOR ---
 
 initSearch : Point -> Grid -> AStarState
 initSearch p0 grid =
@@ -72,6 +78,8 @@ traceCrumbs p crumbs grid =
  case Array.get (Grid.index p grid) crumbs of
   Just prev -> if prev < 0 then [] else
     p :: traceCrumbs (Grid.deindex prev grid) crumbs grid
+
+--- SIMULATION ---
 
 initSim : Seed -> Simulation
 initSim seed0 = let

@@ -14,15 +14,27 @@ type alias Grid = {
   width : Int
 }
 
+toVec2 : Point -> Vec2
 toVec2 (x, y) = (toFloat x, toFloat y)
 
+size : Grid -> Int
 size grid = grid.width * Array.length grid.array
+repeat : Int -> Int -> GridNode -> Grid
 repeat w h node = { array = Array.repeat (w * h) node, width = w }
+index : Point -> Grid -> Int
 index (x, y) grid = y * grid.width + x
+deindex : Int -> Grid -> Point
 deindex i grid = (i % grid.width, i // grid.width)
+get : Point -> Grid -> GridNode
 get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Untraversable
-set p grid = { grid | array <- Array.set (index p grid) Untraversable grid.array }
-unset p grid = { grid | array <- Array.set (index p grid) Traversable grid.array }
+set : Point -> Grid -> Grid  -- sets Untraversable (adds obstacle)
+set p grid = { grid |
+  array <- Array.set (index p grid) Untraversable grid.array }
+unset : Point -> Grid -> Grid  -- sets Traversable (removes obstacle)
+unset p grid = { grid |
+  array <- Array.set (index p grid) Traversable grid.array }
+
+toggle : Point -> Grid -> Grid
 toggle p grid = case (get p grid) of
   Traversable -> set p grid
   Untraversable -> unset p grid
