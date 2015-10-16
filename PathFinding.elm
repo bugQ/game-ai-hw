@@ -3,12 +3,13 @@ module PathFinding where
 import Array exposing (Array)
 import Maybe exposing (withDefault)
 import Graphics.Collage exposing (Form,
-  traced, filled, dashed, circle, move)
-import Color exposing (red, green)
+  traced, filled, dashed, circle, move, text)
+import Text exposing (Text, fromString)
+import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilterMap)
 import Vec2 exposing (Vec2, dist)
-import Grid exposing (Grid, Point, GridNode,
-  toVec2, neighbors, gridPointToScreen, drawGrid)
+import Grid exposing (Grid, Point, GridNode, toVec2, inGrid,
+  neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
 import Random exposing (Generator, generate, Seed)
 import Heap exposing (Heap, findmin, deletemin)
 import Time exposing (Time)
@@ -19,6 +20,7 @@ import Debug
 gridW = 15
 gridH = 15
 maxBlocks = 60
+inf = 1.0 / 0.0
 
 --- STRUCTURES ---
 
@@ -35,45 +37,48 @@ type alias AStarState =
  { frontier : Heap (Float, Int)
  , breadcrumbs : Array Int
  , running_cost : Array Float
+ , finished : Bool
  }
 
 --- BEHAVIOR ---
 
 initSearch : Point -> Grid -> AStarState
-initSearch p0 grid =
- { frontier = Heap.insert (0.0, Grid.index p0 grid) Heap.Leaf
+initSearch p0 grid = let i0 = Grid.index p0 grid in
+ { frontier = Heap.insert (0.0, i0) Heap.Leaf
  , breadcrumbs = Array.repeat (Grid.size grid) -1
- , running_cost = Array.repeat (Grid.size grid) (1.0 / 0.0) -- +inf
+ , running_cost = Array.repeat (Grid.size grid) inf |> Array.set i0 0
+ , finished = False
  }
 
 findPath : Point -> Point -> Grid -> List Point
 findPath p0 p1 grid = aStar p1 grid (initSearch p0 grid)
 
 heuristic : Point -> Point -> Float
-heuristic p0 p1 = dist (toVec2 p0) (toVec2 p1)
+heuristic p1 p2 = dist (toVec2 p1) (toVec2 p2)
+--heuristic (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2) |> toFloat
 
 aStarStep : Point -> Grid -> AStarState -> AStarState
-aStarStep p1 grid state = let
-  (_, i) = findmin state.frontier |> withDefault (0.0, -1)
-  poppedState = { state | frontier <- Debug.watch "frontier" <| deletemin state.frontier }
- in List.foldl (\next s -> let
-      j = Grid.index next grid
-      new_cost = (Array.get i s.running_cost |> withDefault -1) + 1
-     in
-      if new_cost < (Array.get j s.running_cost |> withDefault -1) then
+aStarStep goal grid state = if state.finished then state else let
+  frontier = Debug.watch "frontier" state.frontier  -- view entire heap in debugger
+  (_, i) = findmin frontier |> withDefault (0.0, -1)
+  new_cost = (Array.get i state.running_cost |> withDefault -1) + 1
+  poppedState = { state | frontier <- deletemin state.frontier }
+ in if i < 0 then state else List.foldl (\next s -> let j = Grid.index next grid in
+      if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
         { s
-        | frontier <- Heap.insert (new_cost + heuristic next p1, j) s.frontier
-        , breadcrumbs <- Array.set j i state.breadcrumbs
-        , running_cost <- Array.set j new_cost state.running_cost
+        | frontier <- Heap.insert (new_cost + heuristic next goal, j) s.frontier
+        , breadcrumbs <- Array.set j i s.breadcrumbs
+        , running_cost <- Array.set j new_cost s.running_cost
+        , finished <- next == goal
         }
       else s)
     poppedState
-    (Debug.watch "neighbors" (neighbors (Grid.deindex i grid)))
+    (Debug.watch "neighbors" (neighbors (Grid.deindex i grid) grid))
 
 aStar : Point -> Grid -> AStarState -> List Point
-aStar p1 grid state = case state.frontier of
-  Heap.Leaf -> traceCrumbs p1 state.breadcrumbs grid
-  Heap.Node _ _ -> aStar p1 grid (aStarStep p1 grid state)
+aStar goal grid state = case state.frontier of
+  Heap.Leaf -> traceCrumbs goal state.breadcrumbs grid
+  Heap.Node _ _ -> aStar goal grid (aStarStep goal grid state)
 
 traceCrumbs : Point -> Array Int -> Grid -> List Point
 traceCrumbs p crumbs grid =
@@ -119,10 +124,25 @@ runSearch sim = case sim.search.frontier of
 
 --- DRAWING ---
 
+drawFrontier : Heap (Float, Int) -> Grid -> List Form
+drawFrontier heap grid = case heap of
+  Heap.Leaf -> []
+  Heap.Node (p, i) heaps ->
+    (circle 9 |> filled lightYellow |> move (gridIndexToScreen i grid))
+    :: List.foldl (\h sum -> sum ++ drawFrontier h grid) [] heaps
+
+drawRunningCosts : Array Float -> Grid -> List Form
+drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
+    Just c -> if c == inf then Nothing else
+      Just (toString c |> fromString |> text |> move (gridIndexToScreen i grid))
+    Nothing -> Nothing) [0..(Array.length grid.array)]
+
 drawSim : Simulation -> List Form
-drawSim sim = drawGrid sim.grid ++
- [ traceCrumbs sim.goal sim.search.breadcrumbs sim.grid |>
-    List.map ((flip gridPointToScreen) sim.grid) |> traced (dashed red)
- , circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
- , circle 10 |> filled green |> move (gridPointToScreen sim.start sim.grid)
- ]
+drawSim sim = drawGrid sim.grid
+  ++ drawFrontier sim.search.frontier sim.grid
+  ++ [ traceCrumbs sim.goal sim.search.breadcrumbs sim.grid |>
+     List.map ((flip gridPointToScreen) sim.grid) |> traced (dashed red)
+  , circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
+  , circle 13 |> filled green |> move (gridPointToScreen sim.start sim.grid)
+  ]
+  ++ drawRunningCosts sim.search.running_cost sim.grid

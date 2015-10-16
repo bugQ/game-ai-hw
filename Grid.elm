@@ -21,6 +21,8 @@ size : Grid -> Int
 size grid = grid.width * Array.length grid.array
 repeat : Int -> Int -> GridNode -> Grid
 repeat w h node = { array = Array.repeat (w * h) node, width = w }
+inGrid : Point -> Grid -> Bool
+inGrid (x, y) grid = x < grid.width && y * grid.width < Array.length grid.array
 index : Point -> Grid -> Int
 index (x, y) grid = y * grid.width + x
 deindex : Int -> Grid -> Point
@@ -39,8 +41,8 @@ toggle p grid = case (get p grid) of
   Traversable -> set p grid
   Untraversable -> unset p grid
 
-neighbors : Point -> List Point
-neighbors (x, y) = if x < 0 || y < 0 then [] else
+neighbors : Point -> Grid -> List Point
+neighbors (x, y) grid = List.filter (\p -> inGrid p grid && get p grid /= Untraversable)
  [ (x-1, y-1)
  , (x, y-1)
  , (x+1, y-1)
