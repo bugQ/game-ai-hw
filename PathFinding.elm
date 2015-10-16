@@ -31,6 +31,7 @@ type alias Simulation =
  , search : AStarState
  , rand : Generator Point
  , seed : Seed
+ , restart : Int
  }
 
 type alias AStarState =
@@ -63,7 +64,7 @@ aStarStep goal grid state = if state.finished then state else let
   new_cost = (Array.get i state.running_cost |> withDefault -1) + 1
   poppedState = { state | frontier <- deletemin state.frontier }
  in
-  if i < 0 then state else List.foldl (\next s ->
+  if i < 0 then { state | finished <- True } else List.foldl (\next s ->
      let j = Grid.index next grid in
       if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
         { s
@@ -98,11 +99,11 @@ initSim seed0 = let
   openNodes = indexedFilterMap (\i node -> case node of
     Grid.Untraversable -> Nothing
     Grid.Traversable -> Just i) grid.array
-  randi = Random.int 0 (List.length openNodes)
-  (starti, seed2) = generate randi seed1
-  (goali, seed3) = generate randi seed2
-  start = Grid.deindex starti grid
-  goal = Grid.deindex goali grid
+  randn = Random.int 0 (List.length openNodes)
+  (startn, seed2) = generate randn seed1
+  (goaln, seed3) = generate randn seed2
+  start = Grid.deindex (List.drop startn openNodes |> List.head |> withDefault 0) grid
+  goal = Grid.deindex (List.drop goaln openNodes |> List.head |> withDefault 0) grid
  in
   { grid = grid
   , start = start
@@ -110,10 +111,12 @@ initSim seed0 = let
   , search = initSearch start grid
   , rand = randp
   , seed = seed3
+  , restart = 20
   }
 
 simulate : Time -> Simulation -> Simulation
-simulate _ sim = stepSearch sim
+simulate _ sim = if sim.restart <= 0 then initSim sim.seed else let s = stepSearch sim in
+  { s | restart <- if s.search.finished then s.restart - 1 else s.restart }
 
 stepSearch : Simulation -> Simulation
 stepSearch sim = { sim | search <- aStarStep sim.goal sim.grid sim.search }
