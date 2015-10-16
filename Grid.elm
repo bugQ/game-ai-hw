@@ -40,7 +40,7 @@ toggle p grid = case (get p grid) of
   Untraversable -> unset p grid
 
 neighbors : Point -> List Point
-neighbors (x, y) =
+neighbors (x, y) = if x < 0 || y < 0 then [] else
  [ (x-1, y-1)
  , (x, y-1)
  , (x+1, y-1)
@@ -55,7 +55,7 @@ gridPointToScreen : Point -> Grid -> Vec2
 gridPointToScreen p grid = let
   spacing = 30
   squareSize = spacing * 0.8
-  offset = toFloat grid.width / 2
+  offset = toFloat (grid.width // 2)
  in
   ((toVec2 p .-. (offset, offset)) .* spacing)
 

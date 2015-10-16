@@ -4,13 +4,15 @@ import Array exposing (Array)
 import Maybe exposing (withDefault)
 import Graphics.Collage exposing (Form,
   traced, filled, dashed, circle, move)
-import Color exposing (red)
+import Color exposing (red, green)
 import ArrayToList exposing (indexedFilterMap)
 import Vec2 exposing (Vec2, dist)
 import Grid exposing (Grid, Point, GridNode,
   toVec2, neighbors, gridPointToScreen, drawGrid)
 import Random exposing (Generator, generate, Seed)
 import Heap exposing (Heap, findmin, deletemin)
+import Time exposing (Time)
+import Debug
 
 --- CONSTANTS ---
 
@@ -41,7 +43,7 @@ initSearch : Point -> Grid -> AStarState
 initSearch p0 grid =
  { frontier = Heap.insert (0.0, Grid.index p0 grid) Heap.Leaf
  , breadcrumbs = Array.repeat (Grid.size grid) -1
- , running_cost = Array.repeat (Grid.size grid) -1.0
+ , running_cost = Array.repeat (Grid.size grid) (1.0 / 0.0) -- +inf
  }
 
 findPath : Point -> Point -> Grid -> List Point
@@ -53,7 +55,7 @@ heuristic p0 p1 = dist (toVec2 p0) (toVec2 p1)
 aStarStep : Point -> Grid -> AStarState -> AStarState
 aStarStep p1 grid state = let
   (_, i) = findmin state.frontier |> withDefault (0.0, -1)
-  poppedState = { state | frontier <- deletemin state.frontier }
+  poppedState = { state | frontier <- Debug.watch "frontier" <| deletemin state.frontier }
  in List.foldl (\next s -> let
       j = Grid.index next grid
       new_cost = (Array.get i s.running_cost |> withDefault -1) + 1
@@ -66,12 +68,12 @@ aStarStep p1 grid state = let
         }
       else s)
     poppedState
-    (neighbors (Grid.deindex i grid))
+    (Debug.watch "neighbors" (neighbors (Grid.deindex i grid)))
 
 aStar : Point -> Grid -> AStarState -> List Point
 aStar p1 grid state = case state.frontier of
   Heap.Leaf -> traceCrumbs p1 state.breadcrumbs grid
-  Heap.Node element heaps -> aStar p1 grid (aStarStep p1 grid state)
+  Heap.Node _ _ -> aStar p1 grid (aStarStep p1 grid state)
 
 traceCrumbs : Point -> Array Int -> Grid -> List Point
 traceCrumbs p crumbs grid =
@@ -104,9 +106,23 @@ initSim seed0 = let
   , seed = seed3
   }
 
+simulate : Time -> Simulation -> Simulation
+simulate _ sim = stepSearch sim
+
+stepSearch : Simulation -> Simulation
+stepSearch sim = { sim | search <- aStarStep sim.goal sim.grid sim.search }
+
+runSearch : Simulation -> Simulation
+runSearch sim = case sim.search.frontier of
+  Heap.Leaf -> sim
+  Heap.Node _ _ -> stepSearch sim
+
+--- DRAWING ---
+
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid ++
  [ traceCrumbs sim.goal sim.search.breadcrumbs sim.grid |>
-    List.map gridPointToScreen |> traced (dashed red)
+    List.map ((flip gridPointToScreen) sim.grid) |> traced (dashed red)
  , circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
+ , circle 10 |> filled green |> move (gridPointToScreen sim.start sim.grid)
  ]
