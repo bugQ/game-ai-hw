@@ -6,4 +6,4 @@ import Time exposing (fps)
 
 sim = initSim (initialSeed 1337)
 
-main = collage 500 500 << drawSim <~ foldp simulate sim (fps 10)
+main = collage 500 500 << drawSim <~ foldp simulate sim (fps 5)

@@ -55,7 +55,6 @@ findPath p0 p1 grid = aStar p1 grid (initSearch p0 grid)
 
 heuristic : Point -> Point -> Float
 heuristic p1 p2 = dist (toVec2 p1) (toVec2 p2)
---heuristic (x1, y1) (x2, y2) = abs (x1 - x2) + abs (y1 - y2) |> toFloat
 
 aStarStep : Point -> Grid -> AStarState -> AStarState
 aStarStep goal grid state = if state.finished then state else let
@@ -63,7 +62,9 @@ aStarStep goal grid state = if state.finished then state else let
   (_, i) = findmin frontier |> withDefault (0.0, -1)
   new_cost = (Array.get i state.running_cost |> withDefault -1) + 1
   poppedState = { state | frontier <- deletemin state.frontier }
- in if i < 0 then state else List.foldl (\next s -> let j = Grid.index next grid in
+ in
+  if i < 0 then state else List.foldl (\next s ->
+     let j = Grid.index next grid in
       if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
         { s
         | frontier <- Heap.insert (new_cost + heuristic next goal, j) s.frontier
@@ -81,10 +82,10 @@ aStar goal grid state = case state.frontier of
   Heap.Node _ _ -> aStar goal grid (aStarStep goal grid state)
 
 traceCrumbs : Point -> Array Int -> Grid -> List Point
-traceCrumbs p crumbs grid =
- case Array.get (Grid.index p grid) crumbs of
-  Just prev -> if prev < 0 then [] else
-    p :: traceCrumbs (Grid.deindex prev grid) crumbs grid
+traceCrumbs p crumbs grid = let
+  prev = Array.get (Grid.index p grid) crumbs |> withDefault -1
+ in
+  if prev < 0 then [p] else p :: traceCrumbs (Grid.deindex prev grid) crumbs grid
 
 --- SIMULATION ---
 
@@ -137,12 +138,16 @@ drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
       Just (toString c |> fromString |> text |> move (gridIndexToScreen i grid))
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
+drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
+drawBreadcrumbPath goal crumbs grid = traceCrumbs goal crumbs grid |>
+    List.map ((flip gridPointToScreen) grid) |> traced (dashed red)
+
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
   ++ drawFrontier sim.search.frontier sim.grid
-  ++ [ traceCrumbs sim.goal sim.search.breadcrumbs sim.grid |>
-     List.map ((flip gridPointToScreen) sim.grid) |> traced (dashed red)
-  , circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
-  , circle 13 |> filled green |> move (gridPointToScreen sim.start sim.grid)
-  ]
+  ++
+   [ circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
+   , circle 13 |> filled green |> move (gridPointToScreen sim.start sim.grid)
+   , drawBreadcrumbPath sim.goal sim.search.breadcrumbs sim.grid
+   ]
   ++ drawRunningCosts sim.search.running_cost sim.grid

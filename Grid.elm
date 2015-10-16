@@ -68,6 +68,6 @@ drawGrid : Grid -> List Form
 drawGrid grid = ArrayToList.indexedMap (
     \i node -> filled (case node of
       Traversable -> lightBlue
-      Untraversable -> darkCharcoal) (square 24) |>
+      Untraversable -> darkCharcoal) (square 25) |>
     move (gridIndexToScreen i grid)
   ) grid.array
