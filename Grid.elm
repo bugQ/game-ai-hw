@@ -22,7 +22,8 @@ size grid = grid.width * Array.length grid.array
 repeat : Int -> Int -> GridNode -> Grid
 repeat w h node = { array = Array.repeat (w * h) node, width = w }
 inGrid : Point -> Grid -> Bool
-inGrid (x, y) grid = x < grid.width && y * grid.width < Array.length grid.array
+inGrid (x, y) grid = x >= 0 && y >= 0
+  && x < grid.width && y * grid.width < Array.length grid.array
 index : Point -> Grid -> Int
 index (x, y) grid = y * grid.width + x
 deindex : Int -> Grid -> Point
