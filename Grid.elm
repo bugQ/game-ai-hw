@@ -5,6 +5,7 @@ import Array exposing (Array)
 import ArrayToList
 import Color exposing (lightBlue, darkCharcoal)
 import Vec2 exposing (..)
+import Random exposing (Generator)
 
 type GridNode = Traversable | Untraversable
 type alias Point = (Int, Int)
@@ -42,22 +43,27 @@ toggle p grid = case (get p grid) of
   Traversable -> set p grid
   Untraversable -> unset p grid
 
-neighbors : Point -> Grid -> List Point
-neighbors (x, y) grid = List.filter (\p -> inGrid p grid && get p grid /= Untraversable)
- [ (x-1, y-1)
- , (x, y-1)
- , (x+1, y-1)
- , (x+1, y)
- , (x+1, y+1)
- , (x, y+1)
- , (x-1, y+1)
- , (x-1, y)
- ]
+rand : Grid -> Generator Point
+rand grid = let gridH = Array.length grid.array // grid.width in
+  Random.pair (Random.int 0 grid.width) (Random.int 0 gridH)
+
+-- returns points on grid adjacent to given point with movement costs
+neighbors : Point -> Grid -> List (Point, Float)
+neighbors (x, y) grid = let sqrt2 = sqrt 2 in
+  List.filter (\(p, _) -> inGrid p grid && get p grid /= Untraversable)
+    [ ((x-1, y-1), sqrt2)
+    , ((x, y-1), 1)
+    , ((x+1, y-1), sqrt2)
+    , ((x+1, y), 1)
+    , ((x+1, y+1), sqrt2)
+    , ((x, y+1), 1)
+    , ((x-1, y+1), sqrt2)
+    , ((x-1, y), 1)
+    ]
 
 gridPointToScreen : Point -> Grid -> Vec2
 gridPointToScreen p grid = let
-  spacing = 30
-  squareSize = spacing * 0.8
+  spacing = 40
   offset = toFloat (grid.width // 2)
  in
   ((toVec2 p .-. (offset, offset)) .* spacing)
@@ -69,6 +75,6 @@ drawGrid : Grid -> List Form
 drawGrid grid = ArrayToList.indexedMap (
     \i node -> filled (case node of
       Traversable -> lightBlue
-      Untraversable -> darkCharcoal) (square 25) |>
+      Untraversable -> darkCharcoal) (square 33) |>
     move (gridIndexToScreen i grid)
   ) grid.array

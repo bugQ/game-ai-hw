@@ -13,13 +13,14 @@ import Grid exposing (Grid, Point, GridNode, toVec2, inGrid,
 import Random exposing (Generator, generate, Seed)
 import Heap exposing (Heap, findmin, deletemin)
 import Time exposing (Time)
+import String exposing (left)
 import Debug
 
 --- CONSTANTS ---
 
 gridW = 15
 gridH = 15
-maxBlocks = 60
+maxBlocks = 90
 inf = 1.0 / 0.0
 
 --- STRUCTURES ---
@@ -61,11 +62,15 @@ aStarStep : Point -> Grid -> AStarState -> AStarState
 aStarStep goal grid state = if state.finished then state else let
   frontier = Debug.watch "frontier" state.frontier  -- view entire heap in debugger
   (_, i) = findmin frontier |> withDefault (0.0, -1)
-  new_cost = (Array.get i state.running_cost |> withDefault -1) + 1
+  current_cost = (Array.get i state.running_cost |> withDefault -1)
   poppedState = { state | frontier <- deletemin state.frontier }
  in
-  if i < 0 then { state | finished <- True } else List.foldl (\next s ->
-     let j = Grid.index next grid in
+  if i < 0 then { state | finished <- True }
+    else List.foldl (\(next, next_cost) s ->
+     let
+      j = Grid.index next grid
+      new_cost = current_cost + next_cost
+     in
       if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
         { s
         | frontier <- Heap.insert (new_cost + heuristic next goal, j) s.frontier
@@ -93,7 +98,7 @@ traceCrumbs p crumbs grid = let
 initSim : Seed -> Simulation
 initSim seed0 = let
   emptyGrid = Grid.repeat gridW gridH Grid.Traversable
-  randp = Random.pair (Random.int 0 gridW) (Random.int 0 gridH)
+  randp = Grid.rand emptyGrid
   (indices, seed1) = generate (Random.list maxBlocks randp) seed0
   grid = List.foldr Grid.set emptyGrid indices
   openNodes = indexedFilterMap (\i node -> case node of
@@ -132,13 +137,13 @@ drawFrontier : Heap (Float, Int) -> Grid -> List Form
 drawFrontier heap grid = case heap of
   Heap.Leaf -> []
   Heap.Node (p, i) heaps ->
-    (circle 9 |> filled lightYellow |> move (gridIndexToScreen i grid))
-    :: List.foldl (\h sum -> sum ++ drawFrontier h grid) [] heaps
+    (circle 12 |> filled lightYellow |> move (gridIndexToScreen i grid))
+     :: List.foldl (\h sum -> sum ++ drawFrontier h grid) [] heaps
 
 drawRunningCosts : Array Float -> Grid -> List Form
 drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
     Just c -> if c == inf then Nothing else
-      Just (toString c |> fromString |> text |> move (gridIndexToScreen i grid))
+      Just (toString c |> left 4 |> fromString |> text |> move (gridIndexToScreen i grid))
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
 drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
@@ -149,8 +154,8 @@ drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
   ++ drawFrontier sim.search.frontier sim.grid
   ++
-   [ circle 15 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
-   , circle 13 |> filled green |> move (gridPointToScreen sim.start sim.grid)
+   [ circle 19 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
+   , circle 17 |> filled green |> move (gridPointToScreen sim.start sim.grid)
    , drawBreadcrumbPath sim.goal sim.search.breadcrumbs sim.grid
    ]
   ++ drawRunningCosts sim.search.running_cost sim.grid
