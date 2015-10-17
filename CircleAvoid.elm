@@ -1,6 +1,6 @@
 module CircleAvoid where
 
-import List exposing (map, foldr, filterMap, minimum)
+import List exposing (map, foldl, filterMap, minimum)
 import Color exposing (..)
 import Graphics.Collage exposing (..)
 import Graphics.Element exposing (Element)
@@ -86,14 +86,6 @@ accel driver = let oldActor = driver.vehicle in
 
 -- Simulation --
 
--- toroidal wrapping (modulus-like)
-wrap : Float -> Float -> Float -> Float
-wrap min max x = let len = max - min in
-  if x < min then x + len else if x > max then x - len else x
-wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
-wrap2 min max p = (
-  wrap (fst min) (fst max) (fst p), wrap (snd min) (snd max) (snd p))
-  
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = (inSeconds t)
@@ -122,6 +114,6 @@ initSim = let initActor = { pos = (0, 10), v = (maxV, 0), a = (0, 0) } in
 
 drawSim : Simulation -> Element
 drawSim sim = collage 400 400 <|
-  (foldr (++) (drawVehicle green sim.driver.vehicle) <|
+  (foldl (++) (drawVehicle green sim.driver.vehicle) <|
    map (drawObstacle grey) sim.terrain) ++
   drawOBR (solid yellow) sim.driver.vision

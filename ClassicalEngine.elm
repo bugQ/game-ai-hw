@@ -20,7 +20,7 @@ type alias Circle = {
  }
 
 -- Oriented Bounding Rectangle, a rectangle in 2D
-type alias OBR = {  
+type alias OBR = {
   o : Vec2,  -- center point of the rectangle
   dir : Vec2,  -- local x axis; local y is perp to this
   size : Vec2  -- width and height
@@ -36,6 +36,16 @@ stepActor maxV dt actor = { actor |
   pos <- actor.pos .+. actor.v .* dt,
   v <- actor.v .+. actor.a .* dt |> clamp2 0 maxV
  }
+
+-- circular wrapping (one dimension)
+wrap : Float -> Float -> Float -> Float
+wrap min max x = let len = max - min in
+  if x < min then x + len else if x > max then x - len else x
+
+-- toroidal wrapping (two dimensions)
+wrap2 : Vec2 -> Vec2 -> Vec2 -> Vec2
+wrap2 (xmin, ymin) (xmax, ymax) (x, y) =
+  (wrap xmin xmax x, wrap ymin ymax y)
 
 
 --- Collision ---
@@ -64,16 +74,32 @@ collideOBRxCircle obr circ = let p = nearestPointOBR obr circ.o in
 
 drawVehicle : Color -> Actor -> List Form
 drawVehicle color actor = [
-  filled color (circle 8) |> move actor.pos,
-  outlined (solid charcoal) (circle 8) |> move actor.pos, 
+  circle 8 |> filled color |> move actor.pos,
+  circle 8 |> outlined (solid charcoal) |> move actor.pos,
   traced (solid red) <| segment actor.pos (actor.pos .+. actor.v),
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]
 
+drawBoid : Color -> Bool -> Actor -> List Form
+drawBoid color showV actor = let
+  vdir = normalize actor.v
+  vperp = perp vdir
+  boidtriangle = polygon [
+    actor.pos .+. 10 *. vdir,
+    actor.pos .-. 3 *. vdir .+. 4 *. vperp,
+    actor.pos .-. 3 *. vdir .-. 4 *. vperp
+  ]
+ in [
+  boidtriangle |> filled color,
+  boidtriangle |> outlined (solid charcoal)
+ ] ++ if showV then [
+  segment actor.pos (actor.pos .+. actor.a) |> traced (solid blue)
+ ] else []
+
 drawObstacle : Color -> Circle -> List Form
 drawObstacle color circ = [
-  move circ.o <| filled color <| circle circ.r,
-  move circ.o <| outlined (solid charcoal) <| circle circ.r
+  circle circ.r |> filled color |> move circ.o,
+  circle circ.r |> outlined (solid charcoal) |> move circ.o
  ]
 
 drawOBR : LineStyle -> OBR -> List Form
