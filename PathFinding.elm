@@ -153,8 +153,8 @@ drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
 drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
-drawBreadcrumbPath goal crumbs grid = traceCrumbs goal crumbs grid |>
-    List.map ((flip gridPointToScreen) grid) |> traced (dashed red)
+drawBreadcrumbPath goal crumbs grid = traceCrumbs goal crumbs grid
+  |> List.map ((flip gridPointToScreen) grid) |> traced (dashed red)
 
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
