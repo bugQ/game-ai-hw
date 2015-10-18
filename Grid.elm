@@ -49,7 +49,7 @@ toggle p grid = case (get p grid) of
 
 rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
-  Random.pair (Random.int 0 grid.width) (Random.int 0 gridH)
+  Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
 
 -- returns points on grid adjacent to given point with movement costs
 neighbors : Point -> Grid -> List (Point, Float)
