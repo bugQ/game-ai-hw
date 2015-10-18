@@ -10,11 +10,12 @@ import ArrayToList exposing (indexedFilterMap)
 import Vec2 exposing (Vec2, dist)
 import Grid exposing (Grid, Point, GridNode, toVec2, inGrid,
   neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
-import Random exposing (Generator, generate, Seed)
+import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
 import Time exposing (Time)
 import String exposing (left)
 import Debug
+
 
 --- CONSTANTS ---
 
@@ -22,6 +23,7 @@ gridW = 15
 gridH = 15
 maxBlocks = 90
 inf = 1.0 / 0.0
+
 
 --- STRUCTURES ---
 
@@ -41,6 +43,7 @@ type alias AStarState =
  , running_cost : Array Float
  , finished : Bool
  }
+
 
 --- BEHAVIOR ---
 
@@ -93,6 +96,7 @@ traceCrumbs p crumbs grid = let
  in
   if prev < 0 then [p] else p :: traceCrumbs (Grid.deindex prev grid) crumbs grid
 
+
 --- SIMULATION ---
 
 initSim : Seed -> Simulation
@@ -130,6 +134,7 @@ runSearch : Simulation -> Simulation
 runSearch sim = case sim.search.frontier of
   Heap.Leaf -> sim
   Heap.Node _ _ -> stepSearch sim
+
 
 --- DRAWING ---
 

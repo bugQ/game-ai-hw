@@ -41,6 +41,16 @@ evade target evader = { evader |
   a <- normalize (target .-. evader.pos) .* -maxV .-. evader.v
     |> clamp2 0 maxA }
 
+arrive : Vec2 -> Actor -> Actor
+arrive target arriver = let
+  stopt = maxV / maxA
+  stopd = stopt * maxV / 2
+  diff = target .-. arriver.pos
+  d = norm diff
+  desired_v = if d < stopd then diff .* (2 / stopt) else diff .* (maxV / d)
+ in
+  { arriver | a <- desired_v .-. arriver.v |> clamp2 0 maxA }
+
 
 --- Simulation ---
 
@@ -62,7 +72,7 @@ initSim seed0 = let
   }
 
 simulate : Time -> Simulation -> Simulation
-simulate t sim = if sim.reset > 10 then initSim sim.rand sim.seed else
+simulate t sim = if sim.reset > 10 then initSim sim.seed else
   let dt = (inSeconds t) in
   { sim |
    quarry <- sim.quarry |> stepActor maxV dt,
