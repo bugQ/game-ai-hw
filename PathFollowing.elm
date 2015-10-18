@@ -16,6 +16,7 @@ import Text exposing (fromString)
 
 gridW = 20
 gridH = 20
+spacing = 25
 maxV = 40
 numExplorers = 15
 
@@ -67,7 +68,7 @@ stepExplorer dt e = { e | vehicle <- stepActor maxV dt e.vehicle }
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH Grid.Traversable
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Traversable
   randp = Grid.rand emptyGrid
   (points, seed1) = generate (Random.list numExplorers randp) seed0
  in

@@ -21,6 +21,7 @@ import Debug
 
 gridW = 15
 gridH = 15
+spacing = 40
 maxBlocks = 90
 inf = 1.0 / 0.0
 
@@ -101,7 +102,7 @@ traceCrumbs p crumbs grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH Grid.Traversable
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Traversable
   randp = Grid.rand emptyGrid
   (indices, seed1) = generate (Random.list maxBlocks randp) seed0
   grid = List.foldr Grid.set emptyGrid indices

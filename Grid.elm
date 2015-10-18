@@ -7,15 +7,14 @@ import Color exposing (lightBlue, darkCharcoal)
 import Vec2 exposing (..)
 import Random exposing (Generator)
 
-nodeSpacing = 40
-
 type GridNode = Traversable | Untraversable
 type alias Point = (Int, Int)
 
-type alias Grid = {
-  array : Array GridNode,
-  width : Int
-}
+type alias Grid =
+ { array : Array GridNode
+ , width : Int
+ , spacing : Float
+ }
 
 toVec2 : Point -> Vec2
 toVec2 (x, y) = (toFloat x, toFloat y)
@@ -25,8 +24,8 @@ fromVec2 (x, y) = (round x, round y)
 
 size : Grid -> Int
 size grid = grid.width * Array.length grid.array
-repeat : Int -> Int -> GridNode -> Grid
-repeat w h node = { array = Array.repeat (w * h) node, width = w }
+repeat : Int -> Int -> Float -> GridNode -> Grid
+repeat w h sp node = { array = Array.repeat (w * h) node, width = w, spacing = sp }
 inGrid : Point -> Grid -> Bool
 inGrid (x, y) grid = x >= 0 && y >= 0
   && x < grid.width && y * grid.width < Array.length grid.array
@@ -68,19 +67,19 @@ neighbors (x, y) grid = let sqrt2 = sqrt 2 in
 
 gridPointToScreen : Point -> Grid -> Vec2
 gridPointToScreen p grid = let offset = toFloat (grid.width // 2) in
-  ((toVec2 p .-. (offset, offset)) .* nodeSpacing)
+  ((toVec2 p .-. (offset, offset)) .* grid.spacing)
 
 gridIndexToScreen : Int -> Grid -> Vec2
 gridIndexToScreen i grid = gridPointToScreen (deindex i grid) grid
 
 screenPointToGrid : Vec2 -> Grid -> Point
 screenPointToGrid s grid = let offset = toFloat (grid.width // 2) in
-  fromVec2 (s ./ nodeSpacing .+. (offset, offset))
+  fromVec2 (s ./ grid.spacing .+. (offset, offset))
 
 drawGrid : Grid -> List Form
 drawGrid grid = ArrayToList.indexedMap (
     \i node -> filled (case node of
       Traversable -> lightBlue
-      Untraversable -> darkCharcoal) (square 33) |>
+      Untraversable -> darkCharcoal) (square (grid.spacing * 0.8)) |>
     move (gridIndexToScreen i grid)
   ) grid.array
