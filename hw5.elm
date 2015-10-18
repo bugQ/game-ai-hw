@@ -7,4 +7,4 @@ import Html
 
 sim = initSim (initialSeed 1337)
 
-main = collage 600 600 << drawSim <~ foldp simulate sim (fps 10)
+main = collage 600 600 << drawSim <~ foldp simulate sim (fps 20)

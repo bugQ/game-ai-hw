@@ -9,6 +9,7 @@ import Random exposing (Generator)
 
 type GridNode = Traversable | Untraversable
 type alias Point = (Int, Int)
+type alias Path = List Point
 
 type alias Grid =
  { array : Array GridNode

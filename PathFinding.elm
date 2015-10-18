@@ -8,7 +8,7 @@ import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilterMap)
 import Vec2 exposing (Vec2, dist)
-import Grid exposing (Grid, Point, GridNode, toVec2, inGrid,
+import Grid exposing (Grid, Point, GridNode, Path, toVec2, inGrid,
   neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
 import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
@@ -64,7 +64,7 @@ heuristic p1 p2 = dist (toVec2 p1) (toVec2 p2)
 
 aStarStep : Point -> Grid -> AStarState -> AStarState
 aStarStep goal grid state = if state.finished then state else let
-  frontier = Debug.watch "frontier" state.frontier  -- view entire heap in debugger
+  frontier = state.frontier  -- view entire heap in debugger
   (_, i) = findmin frontier |> withDefault (0.0, -1)
   current_cost = (Array.get i state.running_cost |> withDefault -1)
   poppedState = { state | frontier <- deletemin state.frontier }
@@ -84,7 +84,7 @@ aStarStep goal grid state = if state.finished then state else let
         }
       else s)
     poppedState
-    (Debug.watch "neighbors" (neighbors (Grid.deindex i grid) grid))
+    (neighbors (Grid.deindex i grid) grid)
 
 aStar : Point -> Grid -> AStarState -> List Point
 aStar goal grid state = case state.frontier of
@@ -152,9 +152,11 @@ drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
       Just (toString c |> left 4 |> fromString |> text |> move (gridIndexToScreen i grid))
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
+drawPath : Path -> Grid -> Form
+drawPath path grid = List.map ((flip gridPointToScreen) grid) path |> traced (dashed red)
+
 drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
-drawBreadcrumbPath goal crumbs grid = traceCrumbs goal crumbs grid
-  |> List.map ((flip gridPointToScreen) grid) |> traced (dashed red)
+drawBreadcrumbPath goal crumbs grid = drawPath (traceCrumbs goal crumbs grid) grid
 
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
