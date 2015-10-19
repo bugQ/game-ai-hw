@@ -19,8 +19,9 @@ import Debug
 
 gridW = 20
 gridH = 20
-spacing = 25
-maxV = 40
+spacing = 30
+maxV = 30
+maxA = 70
 numExplorers = 15
 
 
@@ -52,17 +53,17 @@ explore e grid = let
     Heap.Node _ _ -> if search.finished
       then Seeking (traceCrumbs goal search.breadcrumbs grid |> List.reverse)
       else Plotting goal (aStarStep goal grid search) }
+  Seeking [] -> { e | state <- Resting }
   Seeking [goal] -> { e | state <- Arriving goal }
   Seeking (next :: rest) -> if p == next
    then { e | state <- Seeking rest }
    else { e
     | state <- Seeking (next :: rest)
-    , vehicle <- chase (gridPointToScreen next grid) e.vehicle
+    , vehicle <- chase maxV maxA (gridPointToScreen next grid) e.vehicle
     }
-  Seeking [] -> { e | state <- Resting }
-  Arriving goal -> if norm e.vehicle.v < 0.001
+  Arriving goal -> if norm e.vehicle.v < 0.01
    then { e | state <- Resting }
-   else { e | vehicle <- e.vehicle |> arrive (gridPointToScreen goal grid) }
+   else { e | vehicle <- arrive maxV maxA (gridPointToScreen goal grid) e.vehicle }
   _ -> e
 
 

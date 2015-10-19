@@ -31,18 +31,18 @@ maxV = 100
 
 --- Behavior ---
 
-chase : Vec2 -> Actor -> Actor
-chase target chaser = { chaser |
+chase : Float -> Float -> Vec2 -> Actor -> Actor
+chase maxV maxA target chaser = { chaser |
   a <- normalize (target .-. chaser.pos) .* maxV .-. chaser.v
     |> clamp2 0 maxA }
 
-evade : Vec2 -> Actor -> Actor
-evade target evader = { evader |
+evade : Float -> Float -> Vec2 -> Actor -> Actor
+evade maxV maxA target evader = { evader |
   a <- normalize (target .-. evader.pos) .* -maxV .-. evader.v
     |> clamp2 0 maxA }
 
-arrive : Vec2 -> Actor -> Actor
-arrive target arriver = let
+arrive : Float -> Float -> Vec2 -> Actor -> Actor
+arrive maxV maxA target arriver = let
   stopt = maxV / maxA
   stopd = stopt * maxV / 2
   diff = target .-. arriver.pos
@@ -78,8 +78,8 @@ simulate t sim = if sim.reset > 10 then initSim sim.seed else
    quarry <- sim.quarry |> stepActor maxV dt,
    target <- sim.quarry.pos .+. sim.quarry.v .*
      (dist sim.target sim.chaser.pos / maxV),
-   chaser <- sim.chaser |> chase sim.target |> stepActor maxV dt,
-   evader <- sim.evader |> evade sim.target |> stepActor maxV dt,
+   chaser <- sim.chaser |> chase maxV maxA sim.target |> stepActor maxV dt,
+   evader <- sim.evader |> evade maxV maxA sim.target |> stepActor maxV dt,
    reset <- sim.reset + (inSeconds t)
   }
 
