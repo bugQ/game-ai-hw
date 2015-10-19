@@ -3,11 +3,11 @@ module Grid where
 import Graphics.Collage exposing (..)
 import Array exposing (Array)
 import ArrayToList
-import Color exposing (lightBlue, darkCharcoal)
+import Color exposing (lightCharcoal, lightBrown, blue, darkCharcoal)
 import Vec2 exposing (..)
 import Random exposing (Generator)
 
-type GridNode = Traversable | Untraversable
+type GridNode = Road | Sand | Water | Obstacle
 type alias Point = (Int, Int)
 type alias Path = List Point
 
@@ -35,18 +35,9 @@ index (x, y) grid = y * grid.width + x
 deindex : Int -> Grid -> Point
 deindex i grid = (i % grid.width, i // grid.width)
 get : Point -> Grid -> GridNode
-get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Untraversable
-set : Point -> Grid -> Grid  -- sets Untraversable (adds obstacle)
-set p grid = { grid |
-  array <- Array.set (index p grid) Untraversable grid.array }
-unset : Point -> Grid -> Grid  -- sets Traversable (removes obstacle)
-unset p grid = { grid |
-  array <- Array.set (index p grid) Traversable grid.array }
-
-toggle : Point -> Grid -> Grid
-toggle p grid = case (get p grid) of
-  Traversable -> set p grid
-  Untraversable -> unset p grid
+get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Obstacle
+set : Point -> GridNode -> Grid -> Grid
+set p node grid = { grid | array <- Array.set (index p grid) node grid.array }
 
 rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
@@ -55,7 +46,7 @@ rand grid = let gridH = Array.length grid.array // grid.width in
 -- returns points on grid adjacent to given point with movement costs
 neighbors : Point -> Grid -> List (Point, Float)
 neighbors (x, y) grid = let sqrt2 = sqrt 2 in
-  List.filter (\(p, _) -> inGrid p grid && get p grid /= Untraversable)
+  List.filter (\(p, _) -> inGrid p grid && get p grid /= Obstacle)
     [ ((x-1, y-1), sqrt2)
     , ((x, y-1), 1)
     , ((x+1, y-1), sqrt2)
@@ -80,7 +71,9 @@ screenPointToGrid s grid = let offset = toFloat (grid.width - 1) / 2 in
 drawGrid : Grid -> List Form
 drawGrid grid = ArrayToList.indexedMap (
     \i node -> filled (case node of
-      Traversable -> lightBlue
-      Untraversable -> darkCharcoal) (square (grid.spacing * 0.8)) |>
+      Road -> lightCharcoal
+      Sand -> lightBrown
+      Water -> blue
+      Obstacle -> darkCharcoal) (square (grid.spacing * 0.8)) |>
     move (gridIndexToScreen i grid)
   ) grid.array

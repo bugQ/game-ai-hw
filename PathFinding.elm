@@ -102,13 +102,13 @@ traceCrumbs p crumbs grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Grid.Traversable
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Road
   randp = Grid.rand emptyGrid
   (indices, seed1) = generate (Random.list maxBlocks randp) seed0
-  grid = List.foldr Grid.set emptyGrid indices
+  grid = List.foldr ((flip Grid.set) Grid.Obstacle) emptyGrid indices
   openNodes = indexedFilterMap (\i node -> case node of
-    Grid.Untraversable -> Nothing
-    Grid.Traversable -> Just i) grid.array
+    Grid.Road -> Just i
+    _ -> Nothing) grid.array
   randn = Random.int 0 (List.length openNodes)
   (startn, seed2) = generate randn seed1
   (goaln, seed3) = generate randn seed2

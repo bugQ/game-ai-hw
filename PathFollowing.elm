@@ -74,7 +74,7 @@ stepExplorer dt e = { e | vehicle <- stepActor maxV dt e.vehicle }
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Grid.Traversable
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Obstacle
   randp = Grid.rand emptyGrid
   (points, seed1) = generate (Random.list numExplorers randp) seed0
  in
