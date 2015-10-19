@@ -67,14 +67,14 @@ neighbors (x, y) grid = let sqrt2 = sqrt 2 in
     ]
 
 gridPointToScreen : Point -> Grid -> Vec2
-gridPointToScreen p grid = let offset = toFloat (grid.width // 2) in
+gridPointToScreen p grid = let offset = toFloat (grid.width - 1) / 2 in
   ((toVec2 p .-. (offset, offset)) .* grid.spacing)
 
 gridIndexToScreen : Int -> Grid -> Vec2
 gridIndexToScreen i grid = gridPointToScreen (deindex i grid) grid
 
 screenPointToGrid : Vec2 -> Grid -> Point
-screenPointToGrid s grid = let offset = toFloat (grid.width // 2) in
+screenPointToGrid s grid = let offset = toFloat (grid.width - 1) / 2 in
   fromVec2 (s ./ grid.spacing .+. (offset, offset))
 
 drawGrid : Grid -> List Form
