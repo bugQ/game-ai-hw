@@ -2,7 +2,7 @@ module PathFollowing where
 
 import Vec2 exposing (..)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
-import Grid exposing (Grid, Point, Path,
+import Grid exposing (Grid, GridNode(Road, Sand, Water, Obstacle), Point, Path,
   gridPointToScreen, screenPointToGrid, drawGrid)
 import Heap
 import ChaseEvade exposing (chase, arrive, drawTarget)
@@ -16,11 +16,14 @@ import Text exposing (fromString)
 import Debug
 
 --- CONSTANTS ---
+-- (mostly) --
 
 gridW = 20
 gridH = 20
 spacing = 30
-maxV = 30
+maxV node = case node of
+  Obstacle -> 5
+  _ -> 40 / Grid.cost node
 maxA = 70
 numExplorers = 15
 
@@ -47,6 +50,7 @@ type alias Simulation =
 explore : Explorer -> Grid -> Explorer
 explore e grid = let
   p = screenPointToGrid e.vehicle.pos grid
+  node = Grid.get p grid
  in case e.state of
   Plotting goal search -> { e | state <- case search.frontier of
     Heap.Leaf -> Resting
@@ -59,22 +63,19 @@ explore e grid = let
    then { e | state <- Seeking rest }
    else { e
     | state <- Seeking (next :: rest)
-    , vehicle <- chase maxV maxA (gridPointToScreen next grid) e.vehicle
+    , vehicle <- chase (maxV node) maxA (gridPointToScreen next grid) e.vehicle
     }
   Arriving goal -> if norm e.vehicle.v < 0.01
    then { e | state <- Resting }
-   else { e | vehicle <- arrive maxV maxA (gridPointToScreen goal grid) e.vehicle }
+   else { e | vehicle <- arrive (maxV node) maxA (gridPointToScreen goal grid) e.vehicle }
   _ -> e
 
 
 --- SIMULATION ---
 
-stepExplorer : Float -> Explorer -> Explorer
-stepExplorer dt e = { e | vehicle <- stepActor maxV dt e.vehicle }
-
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Grid.Obstacle
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Road
   randp = Grid.rand emptyGrid
   (points, seed1) = generate (Random.list numExplorers randp) seed0
  in
@@ -82,17 +83,20 @@ initSim seed0 = let
   , rand = randp
   , seed = seed1
   , explorers = List.map (\p ->
-     { vehicle = { pos = gridPointToScreen p emptyGrid, v = (0, 0), a = (0, 0) }
-     , state = Resting
-     }) points
+      { vehicle = { pos = gridPointToScreen p emptyGrid, v = (0, 0), a = (0, 0) }
+      , state = Resting
+      }
+    ) points
   }
 
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = inSeconds t
   (new_explorers, new_seed) = List.foldr (\e (list, seed0) ->
-     let new_e = explore (stepExplorer dt e) sim.grid in
-      case new_e.state of
+     let
+       node = Grid.get (screenPointToGrid e.vehicle.pos sim.grid) sim.grid
+       new_e = explore { e | vehicle <- e.vehicle |> stepActor (maxV node) dt } sim.grid
+      in case new_e.state of
         Resting -> let (goal, seed1) = generate sim.rand seed0 in
           ({ new_e | state <- Plotting goal (initSearch
               (screenPointToGrid e.vehicle.pos sim.grid) sim.grid) } :: list, seed1)

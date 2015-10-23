@@ -43,10 +43,19 @@ rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
   Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
 
+cost node = case node of
+  Road -> 1
+  Sand -> 2
+  Water -> 3
+  Obstacle -> 1/0
+
 -- returns points on grid adjacent to given point with movement costs
 neighbors : Point -> Grid -> List (Point, Float)
 neighbors (x, y) grid = let sqrt2 = sqrt 2 in
-  List.filter (\(p, _) -> inGrid p grid && get p grid /= Obstacle)
+  List.filterMap (\(p, c) -> if not (inGrid p grid) then Nothing
+     else case get p grid of
+      Obstacle -> Nothing
+      node -> Just (p, c * cost node))
     [ ((x-1, y-1), sqrt2)
     , ((x, y-1), 1)
     , ((x+1, y-1), sqrt2)
