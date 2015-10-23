@@ -9,6 +9,7 @@ import ChaseEvade exposing (chase, arrive, drawTarget)
 import PathFinding exposing (AStarState,
   initSearch, aStarStep, traceCrumbs, drawPath, drawRunningCosts)
 import Random exposing (Seed, Generator, generate)
+import Random.Array exposing (shuffle)
 import Time exposing (Time, inSeconds)
 import Color exposing (Color, yellow, green, red, grey)
 import Graphics.Collage exposing (Form, circle, solid, filled, move)
@@ -75,7 +76,9 @@ explore e grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Grid.Road
+  emptyGrid = Grid.repeat gridW gridH spacing Grid.Water
+  gridSize = Array.length emptyGrid.array
+  -- TODO: fill in grid with gridSize/3 Obstacles, gridSize/4 Roads, gridSize/4 Sands.
   randp = Grid.rand emptyGrid
   (points, seed1) = generate (Random.list numExplorers randp) seed0
  in
