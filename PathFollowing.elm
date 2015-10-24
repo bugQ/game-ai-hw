@@ -14,6 +14,7 @@ import Time exposing (Time, inSeconds)
 import Color exposing (Color, yellow, green, red, grey)
 import Graphics.Collage exposing (Form, circle, solid, filled, move)
 import Text exposing (fromString)
+import Array
 import Debug
 
 --- CONSTANTS ---
@@ -40,7 +41,6 @@ type alias Explorer =
 
 type alias Simulation =
  { grid : Grid
-  , rand : Generator Point
   , seed : Seed
   , explorers : List Explorer
  }
@@ -76,17 +76,20 @@ explore e grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Grid.Water
-  gridSize = Array.length emptyGrid.array
-  -- TODO: fill in grid with gridSize/3 Obstacles, gridSize/4 Roads, gridSize/4 Sands.
-  randp = Grid.rand emptyGrid
-  (points, seed1) = generate (Random.list numExplorers randp) seed0
+  emptyGrid = Grid.repeat gridW gridH spacing Water
+  checkerboard = Array.initialize (Array.length emptyGrid.array) (\i -> case i % 4 of
+    0 -> Obstacle
+    1 -> Water
+    2 -> Sand
+    3 -> Road)
+  (shuffleboard, seed1) = Random.Array.shuffle seed0 checkerboard
+  grid = { emptyGrid | array <- shuffleboard }
+  (points, seed2) = generate (Random.list numExplorers (Grid.rand grid)) seed1
  in
-  { grid = emptyGrid
-  , rand = randp
-  , seed = seed1
+  { grid = grid
+  , seed = seed2
   , explorers = List.map (\p ->
-      { vehicle = { pos = gridPointToScreen p emptyGrid, v = (0, 0), a = (0, 0) }
+      { vehicle = { pos = gridPointToScreen p grid, v = (0, 0), a = (0, 0) }
       , state = Resting
       }
     ) points
@@ -100,7 +103,7 @@ simulate t sim = let
        node = Grid.get (screenPointToGrid e.vehicle.pos sim.grid) sim.grid
        new_e = explore { e | vehicle <- e.vehicle |> stepActor (maxV node) dt } sim.grid
       in case new_e.state of
-        Resting -> let (goal, seed1) = generate sim.rand seed0 in
+        Resting -> let (goal, seed1) = generate (Grid.rand sim.grid) seed0 in
           ({ new_e | state <- Plotting goal (initSearch
               (screenPointToGrid e.vehicle.pos sim.grid) sim.grid) } :: list, seed1)
         _ -> (new_e :: list, seed0)
