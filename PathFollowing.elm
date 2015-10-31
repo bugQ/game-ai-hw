@@ -32,17 +32,18 @@ numExplorers = 15
 
 --- STRUCTURES ---
 
-type Exploration = Plotting Point AStarState | Seeking Path | Arriving Point | Resting
+type Exploration = Plotting Point | Seeking Path | Arriving Point | Resting
 
 type alias Explorer =
  { vehicle : Actor
+ , search : AStarState
  , state : Exploration
  }
 
 type alias Simulation =
  { grid : Grid
-  , seed : Seed
-  , explorers : List Explorer
+ , seed : Seed
+ , explorers : List Explorer
  }
 
 
@@ -53,11 +54,12 @@ explore e grid = let
   p = screenPointToGrid e.vehicle.pos grid
   node = Grid.get p grid
  in case e.state of
-  Plotting goal search -> { e | state <- case search.frontier of
-    Heap.Leaf -> Resting
-    Heap.Node _ _ -> if search.finished
-      then Seeking (traceCrumbs goal search.breadcrumbs grid |> List.reverse)
-      else Plotting goal (aStarStep goal grid search) }
+  Plotting goal -> case e.search.frontier of
+    Heap.Leaf -> { e | state <- Resting }
+    Heap.Node _ _ -> if e.search.finished
+      then { e | state <- Seeking
+          (traceCrumbs goal e.search.breadcrumbs grid |> List.reverse) }
+      else { e | search <- aStarStep goal grid e.search }
   Seeking [] -> { e | state <- Resting }
   Seeking [goal] -> { e | state <- Arriving goal }
   Seeking (next :: rest) -> if p == next
@@ -90,6 +92,7 @@ initSim seed0 = let
   , seed = seed2
   , explorers = List.map (\p ->
       { vehicle = { pos = gridPointToScreen p grid, v = (0, 0), a = (0, 0) }
+      , search = initSearch p grid
       , state = Resting
       }
     ) points
@@ -104,8 +107,10 @@ simulate t sim = let
        new_e = explore { e | vehicle <- e.vehicle |> stepActor (maxV node) dt } sim.grid
       in case new_e.state of
         Resting -> let (goal, seed1) = generate (Grid.rand sim.grid) seed0 in
-          ({ new_e | state <- Plotting goal (initSearch
-              (screenPointToGrid e.vehicle.pos sim.grid) sim.grid) } :: list, seed1)
+          ({ new_e
+           | state <- Plotting goal
+           , search <- initSearch (screenPointToGrid e.vehicle.pos sim.grid) sim.grid
+           } :: list, seed1)
         _ -> (new_e :: list, seed0)
     ) ([], sim.seed) sim.explorers
  in { sim | explorers <- new_explorers, seed <- new_seed }
@@ -115,7 +120,7 @@ simulate t sim = let
 
 stateColor : Exploration -> Color
 stateColor state = case state of
-  Plotting _ _ -> yellow
+  Plotting _ -> yellow
   Seeking _ -> green
   Arriving _ -> red
   Resting -> grey
@@ -126,8 +131,8 @@ drawSim sim = drawGrid sim.grid
     (List.indexedMap (\i e -> (e.vehicle |> drawVehicle (stateColor e.state))) sim.explorers)
   ++ case List.head sim.explorers of
     Just e -> (circle 4 |> filled red |> move e.vehicle.pos) :: case e.state of
-      Plotting goal search -> drawTarget (solid red) (gridPointToScreen goal sim.grid)
-        ++ drawRunningCosts search.running_cost sim.grid
+      Plotting goal -> drawTarget (solid red) (gridPointToScreen goal sim.grid)
+        ++ drawRunningCosts e.search.running_cost sim.grid
       Seeking path -> [drawPath path sim.grid]
       Arriving goal -> drawTarget (solid red) (gridPointToScreen goal sim.grid)
       Resting -> []
