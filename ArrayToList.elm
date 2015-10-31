@@ -24,3 +24,6 @@ indexedFilterMap : (Int -> a -> Maybe b) -> Array a -> List b
 indexedFilterMap f aa = Array.foldl (\a (i, bb) -> case f i a of
   Just b -> (i + 1, b :: bb)
   Nothing -> (i + 1, bb)) (0, []) aa |> snd
+
+indices : a -> Array a -> List Int
+indices x aa = indexedFilterMap (\i a -> if a == x then Just i else Nothing) aa
