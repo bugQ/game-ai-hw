@@ -5,7 +5,8 @@ import Array exposing (Array)
 import ArrayToList
 import Color exposing (lightCharcoal, lightBrown, blue, darkCharcoal)
 import Vec2 exposing (..)
-import Random exposing (Generator)
+import Random exposing (Generator, Seed)
+import Shuffle exposing (shuffle)
 
 type GridNode = Road | Sand | Water | Obstacle
 type alias Point = (Int, Int)
@@ -42,6 +43,17 @@ set p node grid = { grid | array <- Array.set (index p grid) node grid.array }
 rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
   Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
+
+randGrid : Int -> Int -> Float -> Seed -> (Grid, Seed)
+randGrid w h spacing seed0 = let
+  emptyGrid = repeat w h spacing Water
+  checkerboard = Array.initialize (Array.length emptyGrid.array) (\i -> case i % 4 of
+    0 -> Obstacle
+    1 -> Water
+    2 -> Sand
+    3 -> Road)
+  (shuffleboard, seed1) = shuffle seed0 checkerboard
+ in ({ emptyGrid | array <- shuffleboard }, seed1)
 
 cost node = case node of
   Road -> 1

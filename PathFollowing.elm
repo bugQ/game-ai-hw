@@ -9,12 +9,12 @@ import ChaseEvade exposing (chase, arrive, drawTarget)
 import PathFinding exposing (AStarState,
   initSearch, aStarStep, traceCrumbs, drawPath, drawRunningCosts)
 import Random exposing (Seed, Generator, generate)
-import Random.Array exposing (shuffle)
+import Shuffle exposing (shuffle)
 import Time exposing (Time, inSeconds)
 import Color exposing (Color, yellow, green, red, grey)
 import Graphics.Collage exposing (Form, circle, solid, filled, move)
 import Text exposing (fromString)
-import Array
+import Array exposing (slice)
 import Debug
 
 --- CONSTANTS ---
@@ -78,15 +78,13 @@ explore e grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  emptyGrid = Grid.repeat gridW gridH spacing Water
-  checkerboard = Array.initialize (Array.length emptyGrid.array) (\i -> case i % 4 of
-    0 -> Obstacle
-    1 -> Water
-    2 -> Sand
-    3 -> Road)
-  (shuffleboard, seed1) = Random.Array.shuffle seed0 checkerboard
-  grid = { emptyGrid | array <- shuffleboard }
-  (points, seed2) = generate (Random.list numExplorers (Grid.rand grid)) seed1
+  (grid, seed1) = Grid.randGrid gridW gridH spacing seed0
+  indices = Array.initialize (Array.length grid.array) identity
+  (randIndices, seed2) = shuffle seed1 indices
+  openIndices = Array.filter
+    (\i -> Array.get i grid.array /= Just Obstacle) randIndices
+  points = Array.toList openIndices |> List.take numExplorers
+    |> List.map ((flip Grid.deindex) grid)
  in
   { grid = grid
   , seed = seed2
