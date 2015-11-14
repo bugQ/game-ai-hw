@@ -44,16 +44,18 @@ rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
   Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
 
-randGrid : Int -> Int -> Float -> Seed -> (Grid, Seed)
-randGrid w h spacing seed0 = let
-  emptyGrid = repeat w h spacing Water
-  checkerboard = Array.initialize (Array.length emptyGrid.array) (\i -> case i % 4 of
+randomize : Grid -> Seed -> (Grid, Seed)
+randomize grid seed = let
+  checkerboard = Array.initialize (Array.length grid.array) (\i -> case i % 4 of
     0 -> Obstacle
     1 -> Water
     2 -> Sand
     3 -> Road)
-  (shuffleboard, seed1) = shuffle seed0 checkerboard
- in ({ emptyGrid | array <- shuffleboard }, seed1)
+  (shuffleboard, seed1) = shuffle seed checkerboard
+ in ({ grid | array <- shuffleboard }, seed1)
+
+newRand : Int -> Int -> Float -> Seed -> (Grid, Seed)
+newRand w h spacing seed = randomize (repeat w h spacing Water) seed
 
 cost node = case node of
   Road -> 1

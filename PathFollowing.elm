@@ -34,11 +34,12 @@ numExplorers = 15
 
 type Exploration = Plotting Point | Seeking Path | Arriving Point | Resting
 
-type alias Explorer =
- { vehicle : Actor
- , search : AStarState
+type alias SearchState etc = { etc
+ | search : AStarState
  , state : Exploration
  }
+
+type alias Explorer = Actor (SearchState {})
 
 type alias Simulation =
  { grid : Grid
@@ -51,7 +52,7 @@ type alias Simulation =
 
 explore : Explorer -> Grid -> Explorer
 explore e grid = let
-  p = screenPointToGrid e.vehicle.pos grid
+  p = screenPointToGrid e.pos grid
   node = Grid.get p grid
  in case e.state of
   Plotting goal -> case e.search.frontier of
@@ -64,13 +65,11 @@ explore e grid = let
   Seeking [goal] -> { e | state <- Arriving goal }
   Seeking (next :: rest) -> if p == next
    then { e | state <- Seeking rest }
-   else { e
-    | state <- Seeking (next :: rest)
-    , vehicle <- chase (maxV node) maxA (gridPointToScreen next grid) e.vehicle
-    }
-  Arriving goal -> if norm e.vehicle.v < 0.01
+   else { e | state <- Seeking (next :: rest) }
+     |> chase (maxV node) maxA (gridPointToScreen next grid)
+  Arriving goal -> if norm e.v < 0.01
    then { e | state <- Resting }
-   else { e | vehicle <- arrive (maxV node) maxA (gridPointToScreen goal grid) e.vehicle }
+   else e |> arrive (maxV node) maxA (gridPointToScreen goal grid)
   _ -> e
 
 
@@ -78,7 +77,7 @@ explore e grid = let
 
 initSim : Seed -> Simulation
 initSim seed0 = let
-  (grid, seed1) = Grid.randGrid gridW gridH spacing seed0
+  (grid, seed1) = Grid.newRand gridW gridH spacing seed0
   indices = Array.initialize (Array.length grid.array) identity
   (randIndices, seed2) = shuffle seed1 indices
   openIndices = Array.filter
@@ -89,7 +88,9 @@ initSim seed0 = let
   { grid = grid
   , seed = seed2
   , explorers = List.map (\p ->
-      { vehicle = { pos = gridPointToScreen p grid, v = (0, 0), a = (0, 0) }
+      { pos = gridPointToScreen p grid
+      , v = (0, 0)
+      , a = (0, 0)
       , search = initSearch p grid
       , state = Resting
       }
@@ -101,13 +102,13 @@ simulate t sim = let
   dt = inSeconds t
   (new_explorers, new_seed) = List.foldr (\e (list, seed0) ->
      let
-       node = Grid.get (screenPointToGrid e.vehicle.pos sim.grid) sim.grid
-       new_e = explore { e | vehicle <- e.vehicle |> stepActor (maxV node) dt } sim.grid
+       node = Grid.get (screenPointToGrid e.pos sim.grid) sim.grid
+       new_e = explore (e |> stepActor (maxV node) dt) sim.grid
       in case new_e.state of
         Resting -> let (goal, seed1) = generate (Grid.rand sim.grid) seed0 in
           ({ new_e
            | state <- Plotting goal
-           , search <- initSearch (screenPointToGrid e.vehicle.pos sim.grid) sim.grid
+           , search <- initSearch (screenPointToGrid e.pos sim.grid) sim.grid
            } :: list, seed1)
         _ -> (new_e :: list, seed0)
     ) ([], sim.seed) sim.explorers
@@ -126,9 +127,9 @@ stateColor state = case state of
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
   ++ List.foldl (++) []
-    (List.indexedMap (\i e -> (e.vehicle |> drawVehicle (stateColor e.state))) sim.explorers)
+    (List.indexedMap (\i e -> e |> drawVehicle (stateColor e.state)) sim.explorers)
   ++ case List.head sim.explorers of
-    Just e -> (circle 4 |> filled red |> move e.vehicle.pos) :: case e.state of
+    Just e -> (circle 4 |> filled red |> move e.pos) :: case e.state of
       Plotting goal -> drawTarget (solid red) (gridPointToScreen goal sim.grid)
         ++ drawRunningCosts e.search.running_cost sim.grid
       Seeking path -> [drawPath path sim.grid]

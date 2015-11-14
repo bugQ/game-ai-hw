@@ -7,7 +7,7 @@ import Color exposing (Color, charcoal, red, blue)
 --- Structures ---
 
 -- a basic kinematic entity
-type alias Actor = {
+type alias Actor etc = { etc |
   pos : Vec2,
   v : Vec2,
   a : Vec2
@@ -31,7 +31,7 @@ type alias OBR = {
 
 -- update movement of actor based on velocity and acceleration
 -- really basic classical motion, no Verlet or anything here, sorry
-stepActor : Float -> Float -> Actor -> Actor
+stepActor : Float -> Float -> Actor etc -> Actor etc
 stepActor maxV dt actor = { actor |
   pos <- actor.pos .+. actor.v .* dt,
   v <- actor.v .+. actor.a .* dt |> clamp2 0 maxV
@@ -72,7 +72,7 @@ collideOBRxCircle obr circ = let p = nearestPointOBR obr circ.o in
 
 --- Drawing ---
 
-drawVehicle : Color -> Actor -> List Form
+drawVehicle : Color -> Actor etc -> List Form
 drawVehicle color actor = [
   circle 8 |> filled color |> move actor.pos,
   circle 8 |> outlined (solid charcoal) |> move actor.pos,
@@ -80,7 +80,7 @@ drawVehicle color actor = [
   traced (solid blue) <| segment actor.pos (actor.pos .+. actor.a)
  ]
 
-drawBoid : Color -> Bool -> Actor -> List Form
+drawBoid : Color -> Bool -> Actor etc -> List Form
 drawBoid color showV actor = let
   vdir = normalize actor.v
   vperp = perp vdir

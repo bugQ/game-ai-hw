@@ -13,10 +13,10 @@ import ClassicalEngine exposing (..)
 --- Structures ---
 
 type alias Simulation = {
-  quarry : Actor,
+  quarry : Actor {},
   target : Vec2,
-  chaser : Actor,
-  evader : Actor,
+  chaser : Actor {},
+  evader : Actor {},
   rand : Generator Vec2,
   seed : Seed,
   reset : Float
@@ -31,17 +31,17 @@ maxV = 100
 
 --- Behavior ---
 
-chase : Float -> Float -> Vec2 -> Actor -> Actor
+chase : Float -> Float -> Vec2 -> Actor etc -> Actor etc
 chase maxV maxA target chaser = { chaser |
   a <- normalize (target .-. chaser.pos) .* maxV .-. chaser.v
     |> clamp2 0 maxA }
 
-evade : Float -> Float -> Vec2 -> Actor -> Actor
+evade : Float -> Float -> Vec2 -> Actor etc -> Actor etc
 evade maxV maxA target evader = { evader |
   a <- normalize (target .-. evader.pos) .* -maxV .-. evader.v
     |> clamp2 0 maxA }
 
-arrive : Float -> Float -> Vec2 -> Actor -> Actor
+arrive : Float -> Float -> Vec2 -> Actor etc -> Actor etc
 arrive maxV maxA target arriver = let
   stopt = maxV / maxA
   stopd = stopt * maxV / 2

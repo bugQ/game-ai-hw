@@ -1,13 +1,13 @@
 module TreasureGame where
 
 import Vec2 exposing (Vec2)
-import ClassicalEngine exposing (stepActor, drawVehicle)
+import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
 import Grid exposing (Grid, Point, GridNode(Obstacle),
   deindex, screenPointToGrid, gridPointToScreen, drawGrid)
 import PathFinding exposing (AStarState,
   initSearch, drawRunningCosts, drawPath)
-import PathFollowing exposing (Exploration(Plotting, Seeking, Arriving, Resting),
-  Explorer, maxV, explore, stateColor)
+import PathFollowing exposing (
+  Exploration(Plotting, Seeking, Arriving, Resting), maxV, explore, stateColor)
 import Shuffle exposing (shuffle)
 import ArrayToList
 import Array exposing (Array)
@@ -49,6 +49,8 @@ propIndex prop = case prop of
 
 indexProp : Int -> PropType
 indexProp i = Maybe.withDefault (Key R) (Array.get i propTypes)
+
+type alias Explorer = Actor (PathFollowing.SearchState {})
 
 type alias Dungeon =
  { floor : Grid
