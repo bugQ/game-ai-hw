@@ -8,6 +8,8 @@ import PathFinding exposing (AStarState,
   initSearch, drawRunningCosts, drawPath)
 import PathFollowing exposing (
   Exploration(Plotting, Seeking, Arriving, Resting), maxV, explore, stateColor)
+import StateMachine exposing (State, Condition, Action, StateMachine,
+  addRule, apprise)
 import Shuffle exposing (shuffle)
 import ArrayToList
 import Array exposing (Array)
@@ -23,101 +25,91 @@ gridW = 20
 gridH = 20
 spacing = 30
 
-
---- STRUCTURES ---
-
 type KeyColor = R | G | B
-type PropType = Key KeyColor | Door KeyColor | Chest
+type Prop = Key KeyColor Bool | Door KeyColor Bool | Chest
 
-propTypes : Array PropType
-propTypes = Array.fromList
- [ Key R, Key G, Key B
- , Door R, Door G, Door B
+initProps : List Prop
+initProps =
+ [ Key R False, Key G False, Key B False
+ , Door R False, Door G False, Door B False
  , Chest
  ]
 
--- prop types are mapped to ints for storage
-propIndex : PropType -> Int
-propIndex prop = case prop of
-  Key R -> 0
-  Key G -> 1
-  Key B -> 2
-  Door R -> 3
-  Door G -> 4
-  Door B -> 5
-  Chest -> 6
+indexProp : Int -> Prop
+indexProp i = let (prop :: _) = List.drop i initProps in prop
 
-indexProp : Int -> PropType
-indexProp i = Maybe.withDefault (Key R) (Array.get i propTypes)
+ 
+--- STRUCTURES ---
 
-type alias Explorer = Actor (PathFollowing.SearchState {})
+type alias Explorer = PathFollowing.Explorer { inv : List Prop }
 
 type alias Dungeon =
  { floor : Grid
- , props : Array (Point, Bool) -- tracks whether prop has been activated
- }
-
-type alias Simulation =
- { dungeon : Dungeon
+ , loot : List (Prop, Point)
  , explorer : Explorer
- , target : Int
  }
 
- 
+type alias Simulation = StateMachine Dungeon
+
+
 --- BEHAVIOR ---
 
-initSim : Seed -> Simulation
-initSim seed0 = let
-  (grid, seed1) = Grid.randGrid gridW gridH spacing seed0
+count : (a -> Bool) -> List a -> Int
+count cond list = List.filter cond list |> List.length 
+
+contains : a -> List a -> Bool
+contains item list = [] /= List.filter ((==) item) list
+
+rules : List (String, Condition Dungeon, Action Dungeon, String)
+rules =
+ [ ( "Seek Keys"
+   , (\dungeon -> 0 == count (\prop -> case prop of
+       Key _ _ -> True
+       _ -> False) dungeon.explorer.inv)
+   , identity
+   , "Seek Doors" )
+ ]
+
+initDungeon : Seed -> Dungeon
+initDungeon seed0 = let
+  (grid, seed1) = Grid.newRand gridW gridH spacing seed0
   indices = Array.initialize (Array.length grid.array) identity
   (randIndices, seed2) = shuffle seed1 indices
   openIndices = Array.filter
     (\i -> Array.get i grid.array /= Just Obstacle) randIndices
-  props = Array.slice 1 7 openIndices |> Array.map
-    (\i -> (deindex i grid, False))
-  dungeon = { floor = grid, props = props }
+  props = Array.slice 1 (List.length initProps) openIndices
+    |> ArrayToList.map ((flip deindex) grid) |> List.map2 (,) initProps
   start = deindex (Array.get 0 openIndices |> Maybe.withDefault 0) grid
-  actor = { pos = gridPointToScreen start grid, v = (0.0, 0.0), a = (0.0, 0.0) }
-  targetPoint = case Array.get 0 dungeon.props of
-    Just (p, _) -> p
  in
-  { dungeon = dungeon
+  { floor = grid
+  , loot = props
   , explorer =
-    { vehicle = actor
+    { pos = gridPointToScreen start grid
+    , v = (0.0, 0.0)
+    , a = (0.0, 0.0)
     , search = initSearch start grid
-    , state = Plotting targetPoint
+    , state = Resting
+    , inv = []
     }
-  , target = 0
   }
+
+initSim : Seed -> Simulation
+initSim seed = StateMachine.new 
+  [ "Seek Keys"
+  , "Seek Doors"
+  , "Seek Treasure"
+  ] (initDungeon seed)
 
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
   dt = inSeconds t
-  dungeon = sim.dungeon
+  dungeon = sim.info
   grid = dungeon.floor
-  e = sim.explorer
-  node = Grid.get (screenPointToGrid e.vehicle.pos grid) grid
-  new_e = explore { e | vehicle <- stepActor (maxV node) dt e.vehicle } grid
-  new_p = screenPointToGrid new_e.vehicle.pos grid
-  new_sim = { sim | explorer <- new_e }
- in case new_e.state of
-  Arriving _ -> let
-    propLoc = case Array.get sim.target dungeon.props of
-      Just (p, _) -> p
-   in { new_sim | dungeon <- { dungeon | props <-
-      Array.set sim.target (propLoc, True) dungeon.props }}
-  Resting -> if sim.target == 6 then new_sim else let
-    new_target = sim.target + 1
-    targetPoint = case Array.get new_target dungeon.props of
-      Just (p, _) -> p
-   in
-    { sim | explorer <- { new_e
-      | state <- Plotting targetPoint
-      , search <- initSearch new_p grid
-      }
-      , target <- new_target
-    }
-  _ -> new_sim
+  e = dungeon.explorer
+  node = Grid.get (screenPointToGrid e.pos grid) grid
+  new_e = explore (e |> stepActor (maxV node) dt) grid
+  new_dungeon = { dungeon | explorer <- new_e }
+ in StateMachine.update new_dungeon sim
 
 
 --- DRAWING ---
@@ -128,20 +120,25 @@ keyColor c = case c of
   G -> green
   B -> blue
 
-drawProp : PropType -> Vec2 -> Form
+drawProp : Prop -> Vec2 -> Form
 drawProp prop xy = move xy <| text <| case prop of
-  Key c -> Text.fromString "K" |> Text.color (keyColor c)
-  Door c -> Text.fromString "D" |> Text.color (keyColor c)
+  Key c used -> Text.fromString "K" |> Text.color (keyColor c)
+  Door c open -> Text.fromString (if open then "O" else "D")
+    |> Text.color (keyColor c)
   Chest -> Text.fromString "X" |> Text.color brown
 
 drawSim : Simulation -> List Form
-drawSim sim = drawGrid sim.dungeon.floor
-  ++ ArrayToList.indexedMap (\i (p, _) ->
-        drawProp (indexProp i) (gridPointToScreen p sim.dungeon.floor)
-      ) sim.dungeon.props
-  ++ drawVehicle (stateColor sim.explorer.state) sim.explorer.vehicle
-  ++ case sim.explorer.state of
+drawSim sim = let
+  grid = sim.info.floor
+  props = sim.info.loot
+  e = sim.info.explorer
+ in drawGrid grid
+  ++ List.map (\(prop, p) ->
+        drawProp prop (gridPointToScreen p grid)
+      ) props
+  ++ drawVehicle (stateColor e.state) e
+  ++ case e.state of
       Plotting goal -> drawRunningCosts
-        sim.explorer.search.running_cost sim.dungeon.floor
-      Seeking path -> [drawPath path sim.dungeon.floor]
+        e.search.running_cost grid
+      Seeking path -> [drawPath path grid]
       _ -> []

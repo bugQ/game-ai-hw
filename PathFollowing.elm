@@ -39,18 +39,18 @@ type alias SearchState etc = { etc
  , state : Exploration
  }
 
-type alias Explorer = Actor (SearchState {})
+type alias Explorer etc = Actor (SearchState etc)
 
 type alias Simulation =
  { grid : Grid
  , seed : Seed
- , explorers : List Explorer
+ , explorers : List (Explorer {})
  }
 
 
 --- BEHAVIOR ---
 
-explore : Explorer -> Grid -> Explorer
+explore : Explorer etc -> Grid -> Explorer etc
 explore e grid = let
   p = screenPointToGrid e.pos grid
   node = Grid.get p grid

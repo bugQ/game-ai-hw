@@ -31,12 +31,12 @@ type alias StateMachine a =
 --- CREATION ---
 
 -- starting state assumed first element
-new : Array String -> a -> StateMachine a
+new : List String -> a -> StateMachine a
 new states info =
  { state = 0
  , info = info
- , states = states
- , rules = Array.repeat (Array.length states) []
+ , states = Array.fromList states
+ , rules = Array.repeat (List.length states) []
  }
 
 -- add a transition with lower priority than existing transitions
