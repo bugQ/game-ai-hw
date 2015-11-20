@@ -49,7 +49,7 @@ addRule (src, cond, act, dst) machine =
       [] -> machine
       next :: _ -> case Array.get state machine.rules of
         Nothing -> machine
-        Just stateRules -> { machine | rules <-
+        Just stateRules -> { machine | rules =
           Array.set state (stateRules ++ [(cond, act, next)]) machine.rules }
 
 
@@ -57,7 +57,7 @@ addRule (src, cond, act, dst) machine =
 
 -- just update the additional internal info (such as physics data)
 apprise : a -> StateMachine a -> StateMachine a
-apprise info machine = { machine | info <- info }
+apprise info machine = { machine | info = info }
 
 -- conditionally make a transition based on internal info
 step : StateMachine a -> StateMachine a
@@ -66,7 +66,7 @@ step machine = case Array.get machine.state machine.rules of
   Just stateRules ->
     case List.filter (\(cond, _, _) -> cond machine.info) stateRules of
       [] -> machine
-      (_, act, next) :: _ -> { machine | state <- next, info <- act machine.info }
+      (_, act, next) :: _ -> { machine | state = next, info = act machine.info }
 
 -- conditionally make a transition based on external info
 update : a -> StateMachine a -> StateMachine a

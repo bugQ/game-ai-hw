@@ -33,8 +33,8 @@ type alias OBR = {
 -- really basic classical motion, no Verlet or anything here, sorry
 stepActor : Float -> Float -> Actor etc -> Actor etc
 stepActor maxV dt actor = { actor |
-  pos <- actor.pos .+. actor.v .* dt,
-  v <- actor.v .+. actor.a .* dt |> clamp2 0 maxV
+  pos = actor.pos .+. actor.v .* dt,
+  v = actor.v .+. actor.a .* dt |> clamp2 0 maxV
  }
 
 -- circular wrapping (one dimension)

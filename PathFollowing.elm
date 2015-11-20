@@ -56,19 +56,19 @@ explore e grid = let
   node = Grid.get p grid
  in case e.state of
   Plotting goal -> case e.search.frontier of
-    Heap.Leaf -> { e | state <- Resting }
+    Heap.Leaf -> { e | state = Resting }
     Heap.Node _ _ -> if e.search.finished
-      then { e | state <- Seeking
+      then { e | state = Seeking
           (traceCrumbs goal e.search.breadcrumbs grid |> List.reverse) }
-      else { e | search <- aStarStep goal grid e.search }
-  Seeking [] -> { e | state <- Resting }
-  Seeking [goal] -> { e | state <- Arriving goal }
+      else { e | search = aStarStep goal grid e.search }
+  Seeking [] -> { e | state = Resting }
+  Seeking [goal] -> { e | state = Arriving goal }
   Seeking (next :: rest) -> if p == next
-   then { e | state <- Seeking rest }
-   else { e | state <- Seeking (next :: rest) }
+   then { e | state = Seeking rest }
+   else { e | state = Seeking (next :: rest) }
      |> chase (maxV node) maxA (gridPointToScreen next grid)
   Arriving goal -> if norm e.v < 0.01
-   then { e | state <- Resting }
+   then { e | state = Resting }
    else e |> arrive (maxV node) maxA (gridPointToScreen goal grid)
   _ -> e
 
@@ -107,12 +107,12 @@ simulate t sim = let
       in case new_e.state of
         Resting -> let (goal, seed1) = generate (Grid.rand sim.grid) seed0 in
           ({ new_e
-           | state <- Plotting goal
-           , search <- initSearch (screenPointToGrid e.pos sim.grid) sim.grid
+           | state = Plotting goal
+           , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
            } :: list, seed1)
         _ -> (new_e :: list, seed0)
     ) ([], sim.seed) sim.explorers
- in { sim | explorers <- new_explorers, seed <- new_seed }
+ in { sim | explorers = new_explorers, seed = new_seed }
 
 
 --- DRAWING ---

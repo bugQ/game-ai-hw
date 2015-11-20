@@ -3,7 +3,7 @@ module PathFinding where
 import Array exposing (Array)
 import Maybe exposing (withDefault)
 import Graphics.Collage exposing (Form,
-  traced, filled, dashed, circle, move, text)
+  traced, filled, dashed, circle, move, text, path)
 import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilterMap)
@@ -67,9 +67,9 @@ aStarStep goal grid state = if state.finished then state else let
   frontier = state.frontier  -- view entire heap in debugger
   (_, i) = findmin frontier |> withDefault (0.0, -1)
   current_cost = (Array.get i state.running_cost |> withDefault -1)
-  poppedState = { state | frontier <- deletemin state.frontier }
+  poppedState = { state | frontier = deletemin state.frontier }
  in
-  if i < 0 then { state | finished <- True }
+  if i < 0 then { state | finished = True }
     else List.foldl (\(next, next_cost) s ->
      let
       j = Grid.index next grid
@@ -77,10 +77,10 @@ aStarStep goal grid state = if state.finished then state else let
      in
       if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
         { s
-        | frontier <- Heap.insert (new_cost + heuristic next goal, j) s.frontier
-        , breadcrumbs <- Array.set j i s.breadcrumbs
-        , running_cost <- Array.set j new_cost s.running_cost
-        , finished <- next == goal
+        | frontier = Heap.insert (new_cost + heuristic next goal, j) s.frontier
+        , breadcrumbs = Array.set j i s.breadcrumbs
+        , running_cost = Array.set j new_cost s.running_cost
+        , finished = next == goal
         }
       else s)
     poppedState
@@ -126,10 +126,10 @@ initSim seed0 = let
 
 simulate : Time -> Simulation -> Simulation
 simulate _ sim = if sim.restart <= 0 then initSim sim.seed else let s = stepSearch sim in
-  { s | restart <- if s.search.finished then s.restart - 1 else s.restart }
+  { s | restart = if s.search.finished then s.restart - 1 else s.restart }
 
 stepSearch : Simulation -> Simulation
-stepSearch sim = { sim | search <- aStarStep sim.goal sim.grid sim.search }
+stepSearch sim = { sim | search = aStarStep sim.goal sim.grid sim.search }
 
 runSearch : Simulation -> Simulation
 runSearch sim = case sim.search.frontier of
@@ -153,7 +153,8 @@ drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
 drawPath : Path -> Grid -> Form
-drawPath path grid = List.map ((flip gridPointToScreen) grid) path |> traced (dashed red)
+drawPath pp grid = List.map ((flip gridPointToScreen) grid) pp
+  |> path |> traced (dashed red)
 
 drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
 drawBreadcrumbPath goal crumbs grid = drawPath (traceCrumbs goal crumbs grid) grid

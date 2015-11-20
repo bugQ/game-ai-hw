@@ -38,7 +38,7 @@ deindex i grid = (i % grid.width, i // grid.width)
 get : Point -> Grid -> GridNode
 get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Obstacle
 set : Point -> GridNode -> Grid -> Grid
-set p node grid = { grid | array <- Array.set (index p grid) node grid.array }
+set p node grid = { grid | array = Array.set (index p grid) node grid.array }
 
 rand : Grid -> Generator Point
 rand grid = let gridH = Array.length grid.array // grid.width in
@@ -47,12 +47,12 @@ rand grid = let gridH = Array.length grid.array // grid.width in
 randomize : Grid -> Seed -> (Grid, Seed)
 randomize grid seed = let
   checkerboard = Array.initialize (Array.length grid.array) (\i -> case i % 4 of
-    0 -> Obstacle
     1 -> Water
     2 -> Sand
-    3 -> Road)
+    3 -> Road
+    _ -> Obstacle)
   (shuffleboard, seed1) = shuffle seed checkerboard
- in ({ grid | array <- shuffleboard }, seed1)
+ in ({ grid | array = shuffleboard }, seed1)
 
 newRand : Int -> Int -> Float -> Seed -> (Grid, Seed)
 newRand w h spacing seed = randomize (repeat w h spacing Water) seed

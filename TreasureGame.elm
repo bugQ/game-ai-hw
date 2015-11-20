@@ -106,9 +106,10 @@ simulate t sim = let
   dungeon = sim.info
   grid = dungeon.floor
   e = dungeon.explorer
-  node = Grid.get (screenPointToGrid e.pos grid) grid
+  e_p = (screenPointToGrid e.pos grid)
+  node = Grid.get e_p grid
   new_e = explore (e |> stepActor (maxV node) dt) grid
-  new_dungeon = { dungeon | explorer <- new_e }
+  new_dungeon = { dungeon | explorer = new_e }
  in StateMachine.update new_dungeon sim
 
 
