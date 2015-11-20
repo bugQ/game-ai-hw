@@ -16,7 +16,7 @@ import Array exposing (Array)
 import Random exposing (Seed)
 import Time exposing (Time, inSeconds)
 import Text exposing (Text)
-import Color exposing (Color, purple, red, green, blue, brown)
+import Color exposing (..)
 import Graphics.Collage exposing (Form, text, move)
 
 --- CONSTANTS ---
@@ -26,18 +26,27 @@ gridH = 20
 spacing = 30
 
 type KeyColor = R | G | B
-type Prop = Key KeyColor Bool | Door KeyColor Bool | Chest
+type Prop = Key KeyColor | Door KeyColor Bool | Chest
 
 initProps : List Prop
 initProps =
- [ Key R False, Key G False, Key B False
+ [ Key R, Key G, Key B
  , Door R False, Door G False, Door B False
  , Chest
  ]
 
 indexProp : Int -> Prop
-indexProp i = let (prop :: _) = List.drop i initProps in prop
+indexProp i = case List.drop i initProps of
+  prop :: _ -> prop
+  [] -> Chest
 
+states : Array String
+states = Array.fromList
+  [ "Seek Keys"
+  , "Seek Doors"
+  , "Seek Treasure"
+  , "Celebrate !!"
+  ]
  
 --- STRUCTURES ---
 
@@ -54,8 +63,13 @@ type alias Simulation = StateMachine Dungeon
 
 --- BEHAVIOR ---
 
-count : (a -> Bool) -> List a -> Int
-count cond list = List.filter cond list |> List.length 
+isKey prop = case prop of
+  Key _ -> True
+  _ -> False
+
+isLockedDoor prop = case prop of
+  Door _ False -> True
+  _ -> False
 
 contains : a -> List a -> Bool
 contains item list = [] /= List.filter ((==) item) list
@@ -63,11 +77,60 @@ contains item list = [] /= List.filter ((==) item) list
 rules : List (String, Condition Dungeon, Action Dungeon, String)
 rules =
  [ ( "Seek Keys"
-   , (\dungeon -> 0 == count (\prop -> case prop of
-       Key _ _ -> True
-       _ -> False) dungeon.explorer.inv)
+   , (\dungeon -> not <| List.any (fst >> isKey) dungeon.loot)
+   , (\dungeon -> let e = dungeon.explorer in
+       { dungeon | explorer = { e | state = Resting } }
+     )
+   , "Seek Doors"
+   )
+ , ( "Seek Keys"
+   , (\dungeon -> dungeon.explorer.state == Resting)
+   , (\dungeon -> let
+       e = dungeon.explorer
+       start = screenPointToGrid e.pos dungeon.floor
+       keys = List.filter (fst >> isKey) dungeon.loot
+       target = case keys of
+         (_, p) :: _ -> p
+         [] -> (0, 0)
+      in { dungeon
+       | explorer = { e
+         | state = Plotting target
+         , search = initSearch start dungeon.floor
+         }
+       }
+     )
+   , "Seek Keys"
+   )
+ , ( "Seek Doors"
+   , (\dungeon -> not <| List.any (fst >> isLockedDoor) dungeon.loot)
+   , (\dungeon -> let e = dungeon.explorer in
+       { dungeon | explorer = { e | state = Resting } }
+     )
+   , "Seek Treasure"
+   )
+ , ( "Seek Doors"
+   , (\dungeon -> dungeon.explorer.state == Resting)
+   , (\dungeon -> let
+       e = dungeon.explorer
+       start = screenPointToGrid e.pos dungeon.floor
+       lockedDoors = List.filter (fst >> isLockedDoor) dungeon.loot
+       target = case lockedDoors of
+         (_, p) :: _ -> p
+         [] -> (0, 0)
+      in { dungeon
+       | explorer = { e
+         | state = Plotting target
+         , search = initSearch start dungeon.floor
+         }
+       }
+     )
+   , "Seek Doors"
+   )
+ , ( "Seek Treasure"
+   , (\dungeon -> not <| List.any (fst >> (==) Chest) dungeon.loot)
    , identity
-   , "Seek Doors" )
+   , "Celebrate !!"
+   )
  ]
 
 initDungeon : Seed -> Dungeon
@@ -93,12 +156,9 @@ initDungeon seed0 = let
     }
   }
 
-initSim : Seed -> Simulation
-initSim seed = StateMachine.new 
-  [ "Seek Keys"
-  , "Seek Doors"
-  , "Seek Treasure"
-  ] (initDungeon seed)
+--initSim : Seed -> Simulation
+initSim seed = List.foldl addRule
+  (StateMachine.new states (initDungeon seed)) rules
 
 simulate : Time -> Simulation -> Simulation
 simulate t sim = let
@@ -109,7 +169,24 @@ simulate t sim = let
   e_p = (screenPointToGrid e.pos grid)
   node = Grid.get e_p grid
   new_e = explore (e |> stepActor (maxV node) dt) grid
-  new_dungeon = { dungeon | explorer = new_e }
+  new_dungeon = case List.filter (\(_, p) -> p == e_p) dungeon.loot of
+    (prop, p) :: _ -> case prop of
+      Key c -> { dungeon
+        | explorer = { new_e | inv = prop :: new_e.inv }
+        , loot = List.filter ((/=) (prop, p)) dungeon.loot
+       }
+      Door c False -> if List.any ((==) (Key c)) new_e.inv
+        then { dungeon
+          | explorer = new_e
+          , loot = (Door c True, p)
+            :: List.filter ((/=) (prop, p)) dungeon.loot
+         }
+        else { dungeon | explorer = new_e }
+      Chest -> if not <| List.any (fst >> isLockedDoor) dungeon.loot
+        then { dungeon | loot = List.filter (fst >> (/=) Chest) dungeon.loot }
+        else { dungeon | explorer = new_e }
+      _ -> { dungeon | explorer = new_e }
+    [] -> { dungeon | explorer = new_e }
  in StateMachine.update new_dungeon sim
 
 
@@ -123,7 +200,7 @@ keyColor c = case c of
 
 drawProp : Prop -> Vec2 -> Form
 drawProp prop xy = move xy <| text <| case prop of
-  Key c used -> Text.fromString "K" |> Text.color (keyColor c)
+  Key c -> Text.fromString "K" |> Text.color (keyColor c)
   Door c open -> Text.fromString (if open then "O" else "D")
     |> Text.color (keyColor c)
   Chest -> Text.fromString "X" |> Text.color brown
@@ -138,8 +215,13 @@ drawSim sim = let
         drawProp prop (gridPointToScreen p grid)
       ) props
   ++ drawVehicle (stateColor e.state) e
-  ++ case e.state of
+  ++ (case e.state of
       Plotting goal -> drawRunningCosts
         e.search.running_cost grid
       Seeking path -> [drawPath path grid]
-      _ -> []
+      _ -> [])
+  ++ (case Array.get sim.state states of
+      Just s -> [s |> Text.fromString
+        |> Text.color purple |> Text.height 18 |> Text.bold
+        |> text |> move e.pos]
+      Nothing -> [])
