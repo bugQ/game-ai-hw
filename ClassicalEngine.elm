@@ -98,13 +98,13 @@ drawBoid color showV actor = let
 
 drawObstacle : Color -> Circle -> List Form
 drawObstacle color circ = [
-  circle circ.r |> filled color |> move circ.o,
-  circle circ.r |> outlined (solid charcoal) |> move circ.o
+  circle circ.r |> filled color |> Graphics.Collage.move circ.o,
+  circle circ.r |> outlined (solid charcoal) |> Graphics.Collage.move circ.o
  ]
 
 drawOBR : LineStyle -> OBR -> List Form
 drawOBR style obr = [
   outlined style (uncurry rect obr.size) |>
-    rotate (uncurry (flip atan2) obr.dir) |>
-    move obr.o
+    Graphics.Collage.rotate (uncurry (flip atan2) obr.dir) |>
+    Graphics.Collage.move obr.o
  ]
