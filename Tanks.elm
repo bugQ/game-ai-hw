@@ -3,25 +3,29 @@ module Tanks where
 import Vec2 exposing (..)
 import Color exposing (green)
 import Graphics.Collage exposing (Form, filled, rect, solid, rotate)
-import ClassicalEngine exposing (OBR, drawOBR)
+import ClassicalEngine exposing (Circle, OBR, drawOBR)
+
+
+--- STRUCTURES ---
+
+type alias Tank = OBR { treads : Vec2 }
 
 
 --- BEHAVIOURS ---
 
-stepTank : Float -> Vec2 -> OBR -> OBR
-stepTank dt (treadL, treadR) tank =
+stepTank : Float -> Tank -> Tank
+stepTank dt tank = let
+  (treadL, treadR) = tank.treads
+  width = fst tank.size
+ in
   if treadL == treadR then
     if treadL == 0.0 then
       tank
     else
       { tank | o = perp tank.dir .* (treadR * dt) .+. tank.o }
-  else if treadL == -treadR then let
-    width = fst tank.size
-    doublev = treadR - treadL
-   in
-    { tank | dir = Vec2.rotate (doublev / width * dt) tank.dir }
+  else if treadL == -treadR then
+    { tank | dir = Vec2.rotate ((treadR - treadL) / width * dt) tank.dir }
   else let
-    width = fst tank.size
     r = width / (1 - treadL / treadR) - width * 0.5
     pivot = tank.o .-. (r *. tank.dir)
     v = (treadL + treadR) * 0.5
@@ -33,7 +37,7 @@ stepTank dt (treadL, treadR) tank =
 
 --- DRAWING ---
 
-drawTank : OBR -> List Form
+drawTank : Tank -> List Form
 drawTank tank = drawOBR (solid green) tank ++ let
   angle = (uncurry (flip atan2) tank.dir)
   barrel_offset = tank.size .*. (0.0, 0.5)
