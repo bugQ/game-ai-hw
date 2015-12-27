@@ -69,6 +69,10 @@ project p q = dot p q / dot q q *. q
 reflect : Vec2 -> Vec2 -> Vec2
 reflect p q = q .-. 2 *. project p q
 
+-- rotate vector around origin by angle
+rotate : Float -> Vec2 -> Vec2
+rotate rad p = let b = (sin rad, cos rad) in (cross p b, dot p b)
+
 -- minimum of each vector component
 min2 : Vec2 -> Vec2 -> Vec2
 min2 (x1, y1) (x2, y2) = (min x1 x2, min y1 y2)
