@@ -8,6 +8,19 @@ import Char exposing (KeyCode)
 import Keyboard
 import Time exposing (Time, fps)
 
+import Html exposing (Html, div)
+import Effects
+import StartApp exposing (start)
+
+(<~) = Signal.map
+(~) = Signal.map2 (<|)
+infixl 4 <~
+infixl 4 ~
+
+
+type Action = Tick Time | Levers Vec2
+
+
 treadMax : Float
 treadMax = 100
 
@@ -28,17 +41,14 @@ tankControl keys = List.foldl
       sum
   ) (0, 0) tankKeys
 
-type Action = Tick Time | Levers Vec2
-
-inputs : Signal Action
-inputs = Signal.merge
-  (Signal.map Tick (fps 60))
-  (Signal.map Levers (Signal.map tankControl Keyboard.keysDown))
 
 update : Action -> Tank -> Tank
 update action tank = case action of
   Tick tick -> stepTank (Time.inSeconds tick) tank
   Levers levers -> { tank | treads = levers }
+
+view : Signal.Address Action -> Tank -> Html
+view address = drawTank >> collage 400 300 >> Html.fromElement
 
 tank0 : Tank
 tank0 =
@@ -48,6 +58,13 @@ tank0 =
  , treads = (0, 0)
  }
 
-main = Signal.map
-  (collage 400 300 << drawTank)
-  (Signal.foldp update tank0 inputs)
+
+main = .html <| start
+ { init = ( tank0, Effects.none )
+ , update = (\a m -> (update a m, Effects.none))
+ , view = view
+ , inputs =
+   [ Tick <~ fps 60
+   , Levers << tankControl <~ Keyboard.keysDown
+   ]
+ }

@@ -10,6 +10,12 @@ import StartApp exposing (..)
 import String
 import Char
 
+(<~) = Signal.map
+(~) = Signal.map2 (<|)
+infixl 4 <~
+infixl 4 ~
+
+
 type Action =
   Tick Time
   | Neighbor Float
