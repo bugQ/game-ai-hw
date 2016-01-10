@@ -1,12 +1,13 @@
 import Vec2 exposing (..)
 import ClassicalEngine exposing (OBR)
-import Tanks exposing (Tank, stepTank, drawTank)
+import Tanks exposing (Simulation, Tank, initSim, simulate, drawSim)
 import Graphics.Collage exposing (collage)
 
 import Set exposing (Set)
 import Char exposing (KeyCode)
 import Keyboard
 import Time exposing (Time, fps)
+import Random exposing (initialSeed)
 
 import Html exposing (Html, div)
 import Effects
@@ -42,25 +43,20 @@ tankControl keys = List.foldl
   ) (0, 0) tankKeys
 
 
-update : Action -> Tank -> Tank
-update action tank = case action of
-  Tick tick -> stepTank (Time.inSeconds tick) tank
-  Levers levers -> { tank | treads = levers }
+update : Action -> Simulation -> Simulation
+update action sim = case action of
+  Tick tick -> simulate tick sim
+  Levers levers -> case sim.tanks of
+    player :: bots ->
+      { sim | tanks = { player | treads = levers } :: bots }
+    [] -> sim
 
-view : Signal.Address Action -> Tank -> Html
-view address = drawTank >> collage 400 300 >> Html.fromElement
-
-tank0 : Tank
-tank0 =
- { o = (0, 0)
- , dir = (1, 0)
- , size = (20, 20)
- , treads = (0, 0)
- }
+view : Signal.Address Action -> Simulation -> Html
+view address = drawSim >> collage 400 300 >> Html.fromElement
 
 
 main = .html <| start
- { init = ( tank0, Effects.none )
+ { init = ( initSim 400 300 (initialSeed 1337), Effects.none )
  , update = (\a m -> (update a m, Effects.none))
  , view = view
  , inputs =
