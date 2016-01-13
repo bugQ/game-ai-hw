@@ -9,7 +9,7 @@ import Keyboard
 import Time exposing (Time, fps)
 import Random exposing (initialSeed)
 
-import Html exposing (Html, div)
+import Html exposing (Html, div, p, text)
 import Effects
 import StartApp exposing (start)
 
@@ -52,15 +52,21 @@ update action sim = case action of
     [] -> sim
 
 view : Signal.Address Action -> Simulation -> Html
-view address = drawSim >> collage 400 300 >> Html.fromElement
+view address sim = div []
+  [ drawSim sim |> collage 400 300 |> Html.fromElement
+  , p [] [text (case sim.tanks of
+      player :: bots -> toString (Set.size player.inv)
+      [] -> ""
+    )]
+  ]
 
 
 main = .html <| start
- { init = ( initSim 400 300 (initialSeed 1337), Effects.none )
- , update = (\a m -> (update a m, Effects.none))
- , view = view
- , inputs =
-   [ Tick <~ fps 60
-   , Levers << tankControl <~ Keyboard.keysDown
-   ]
- }
+  { init = ( initSim 400 300 (initialSeed 1337), Effects.none )
+  , update = (\a m -> (update a m, Effects.none))
+  , view = view
+  , inputs =
+    [ Tick <~ fps 60
+    , Levers << tankControl <~ Keyboard.keysDown
+    ]
+  }

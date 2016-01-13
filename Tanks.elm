@@ -7,15 +7,18 @@ import ClassicalEngine exposing
   (Circle, OBR, collideOBRxCircle, drawObstacle, drawOBR)
 import Random exposing (Seed, Generator, initialSeed, generate)
 import Time exposing (Time)
+import Set exposing (Set)
 
 
 --- CONSTANTS ---
 
 mineSize = 5
+tankSize = 20
+
 
 --- STRUCTURES ---
 
-type alias Tank = OBR { treads : Vec2 }
+type alias Tank = OBR { treads : Vec2, inv : Set Vec2 }
 
 type alias Simulation =
  { tanks : List Tank
@@ -25,14 +28,16 @@ type alias Simulation =
  , reset : Time
  }
 
+
 --- SIMULATION ---
 
 tank0 : Tank
 tank0 =
  { o = (0, 0)
  , dir = (1, 0)
- , size = (20, 20)
+ , size = (tankSize, tankSize)
  , treads = (0, 0)
+ , inv = Set.empty
  }
 
 initSim : Float -> Float -> Seed -> Simulation
@@ -51,6 +56,19 @@ initSim w h seed0 = let
   , seed = seed
   , reset = 20 * Time.second
   }
+
+simulate : Time -> Simulation -> Simulation
+simulate tick sim =
+  { sim | tanks = List.map ((stepTank tick)
+      >> (\tank -> { tank | inv =
+          List.foldl (\mine inv -> case collideOBRxCircle tank mine of
+              Just _ -> Set.insert mine.o inv
+              Nothing -> inv
+            ) tank.inv sim.mines
+        })
+    ) sim.tanks
+  }
+
 
 --- BEHAVIOURS ---
 
@@ -75,16 +93,6 @@ stepTank tick tank = let
     new_pos = pivot .+. (new_dir .* r)
    in
     { tank | o = new_pos, dir = new_dir }
-
-simulate : Time -> Simulation -> Simulation
-simulate tick sim = let
-  moved = { sim | tanks = List.map (stepTank tick) sim.tanks }
- in
-  { moved | mines =
-     List.filter
-      (\mine -> List.all (\tank -> collideOBRxCircle tank mine == Nothing) sim.tanks)
-      sim.mines
-  }
 
 
 --- DRAWING ---
