@@ -4,7 +4,7 @@ import Vec2 exposing (..)
 import Color exposing (red, green)
 import Graphics.Collage exposing (Form, filled, rect, solid, rotate)
 import ClassicalEngine exposing
-  (Circle, OBR, collideOBRxCircle, drawObstacle, drawOBR)
+  (Circle, OBR, wrap2, collideOBRxCircle, drawObstacle, drawOBR)
 import Random exposing (Seed, Generator, initialSeed, generate)
 import Time exposing (Time)
 import Set exposing (Set)
@@ -14,6 +14,7 @@ import Set exposing (Set)
 
 mineSize = 5
 tankSize = 20
+genTime = 30 * Time.second
 moveTime = 0.5 * Time.second
 treadMax = 70
 
@@ -28,7 +29,8 @@ type alias Tank = OBR
  }
 
 type alias Simulation =
- { tanks : List Tank
+ { size : Vec2
+ , tanks : List Tank
  , mines : List Circle
  , seed : Seed
  , reset : Time
@@ -58,15 +60,18 @@ initSim w h seed0 = let
   (mines, seed) = generate genMines seed0
   tanks = List.repeat 20 tank0
  in
-  { tanks = tanks
+  { size = (w, h)
+  , tanks = tanks
   , mines = mines
   , seed = seed
-  , reset = 20 * Time.second
+  , reset = genTime
   }
 
 simulate : Time -> Simulation -> Simulation
 simulate tick sim =
   { sim | tanks = List.map ((stepTank tick)
+      >> (\tank -> { tank | o =
+          wrap2 (sim.size .* -0.5) (sim.size .* 0.5) tank.o })
       >> (\tank -> { tank | inv =
           List.foldl (\mine inv -> case collideOBRxCircle tank mine of
               Just _ -> Set.insert mine.o inv
