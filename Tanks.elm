@@ -14,16 +14,22 @@ import Set exposing (Set)
 
 mineSize = 5
 tankSize = 20
+moveTime = 0.5 * Time.second
+treadMax = 70
 
 
 --- STRUCTURES ---
 
-type alias Tank = OBR { treads : Vec2, inv : Set Vec2 }
+type alias Tank = OBR
+ { treads : Vec2
+ , inv : Set Vec2
+ , moves : List Vec2
+ , next : Time
+ }
 
 type alias Simulation =
  { tanks : List Tank
  , mines : List Circle
- , rand : Generator (List Circle)
  , seed : Seed
  , reset : Time
  }
@@ -38,21 +44,22 @@ tank0 =
  , size = (tankSize, tankSize)
  , treads = (0, 0)
  , inv = Set.empty
+ , moves = []
+ , next = moveTime
  }
 
 initSim : Float -> Float -> Seed -> Simulation
 initSim w h seed0 = let
-  rand = Random.list 40
+  genMines = Random.list 40
     <| Random.map (\pos -> { o = pos, r = mineSize })
     <| Random.pair
         (Random.float (-w*0.5) (w*0.5))
         (Random.float (-h*0.5) (h*0.5))
-  (mines, seed) = generate rand seed0
+  (mines, seed) = generate genMines seed0
   tanks = List.repeat 20 tank0
  in
   { tanks = tanks
   , mines = mines
-  , rand = rand
   , seed = seed
   , reset = 20 * Time.second
   }
@@ -74,8 +81,15 @@ simulate tick sim =
 
 stepTank : Time -> Tank -> Tank
 stepTank tick tank = let
+  nextMove = tank.next - tick
+  tank = if nextMove > 0 then
+      { tank | next = nextMove }
+    else case tank.moves of
+      move :: moves ->
+        { tank | treads = move, moves = moves, next = nextMove + moveTime }
+      [] -> { tank | next = 0 }
   dt = Time.inSeconds tick
-  (treadL, treadR) = tank.treads
+  (treadL, treadR) = clamp2 -1 1 tank.treads .* treadMax
   width = fst tank.size
  in
   if treadL == treadR then

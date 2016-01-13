@@ -21,16 +21,12 @@ infixl 4 ~
 
 type Action = Tick Time | Levers Vec2
 
-
-treadMax : Float
-treadMax = 100
-
 tankKeys : List (Char, Vec2)
 tankKeys =
- [ ('Q', (treadMax, 0))
- , ('A', (-treadMax, 0))
- , ('W', (0, treadMax))
- , ('S', (0, -treadMax))
+ [ ('Q', (1, 0))
+ , ('A', (-1, 0))
+ , ('W', (0, 1))
+ , ('S', (0, -1))
  ]
 
 tankControl : (Set KeyCode) -> Vec2
