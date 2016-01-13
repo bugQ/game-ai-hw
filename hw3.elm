@@ -1,5 +1,5 @@
 import Time exposing (Time, fps)
-import Signal exposing (message, (<~))
+import Signal exposing (message
 import Random exposing (initialSeed)
 import Flocking exposing (Simulation, simulate, initSim, drawSim, defaults)
 import Html exposing (..)
