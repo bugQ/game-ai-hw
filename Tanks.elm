@@ -14,6 +14,8 @@ import Set exposing (Set)
 
 mineSize = 5
 tankSize = 20
+numMines = 40
+numTanks = 16
 genTime = 30 * Time.second
 moveTime = 0.5 * Time.second
 treadMax = 70
@@ -52,18 +54,24 @@ tank0 =
 
 initSim : Float -> Float -> Seed -> Simulation
 initSim w h seed0 = let
-  genMines = Random.list 40
+  genMines = Random.list numMines
     <| Random.map (\pos -> { o = pos, r = mineSize })
     <| Random.pair
         (Random.float (-w*0.5) (w*0.5))
         (Random.float (-h*0.5) (h*0.5))
-  (mines, seed) = generate genMines seed0
-  tanks = List.repeat 20 tank0
+  (mines, seed1) = generate genMines seed0
+  genTanks = Random.list (numTanks - 1)
+    <| Random.map (\moves -> { tank0 | moves = moves })
+    <| Random.list (genTime / moveTime |> ceiling)
+    <| Random.pair
+        (Random.float -1.0 1.0)
+        (Random.float -1.0 1.0)
+  (tanks, seed2) = generate genTanks seed1
  in
   { size = (w, h)
-  , tanks = tanks
+  , tanks = tank0 :: tanks
   , mines = mines
-  , seed = seed
+  , seed = seed2
   , reset = genTime
   }
 
