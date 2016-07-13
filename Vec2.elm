@@ -1,4 +1,4 @@
-module Vec2 where
+module Vec2 exposing (..)
 
 -- floating-point only, for simplicity
 type alias Vec2 = (Float, Float)
@@ -40,6 +40,10 @@ dot (x1, y1) (x2, y2) = x1 * x2 + y1 * y2
 -- since 2D, gives magnitude (z) of cross product
 cross : Vec2 -> Vec2 -> Float
 cross (x1, y1) (x2, y2) = x1 * y2 - y1 * x2
+
+-- opposite vector
+oppose : Vec2 -> Vec2
+oppose (x, y) = (-x, -y)
 
 -- right-handed (CCW) perpendicular
 perp : Vec2 -> Vec2

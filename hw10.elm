@@ -1,68 +1,69 @@
-import Vec2 exposing (..)
-import ClassicalEngine exposing (OBR)
-import Tanks exposing (Simulation, Tank, initSim, simulate, drawSim)
-import Graphics.Collage exposing (collage)
+import Tanks exposing (Simulation, Tank, simulate, drawSim)
+import Collage exposing (collage)
+import Element exposing (toHtml)
 
 import Set exposing (Set)
 import Char exposing (KeyCode)
 import Keyboard
-import Time exposing (Time, fps)
-import Random exposing (initialSeed)
+import Time exposing (Time)
+import AnimationFrame
+import Random exposing (initialSeed, generate)
 
 import Html exposing (Html, div, p, text)
-import Effects
-import StartApp exposing (start)
+import Html.App exposing (program)
 
-(<~) = Signal.map
-(~) = Signal.map2 (<|)
-infixl 4 <~
-infixl 4 ~
+type Action = Init Simulation | Tick Time | LeverL Float | LeverR Float | Pass
 
+keyDown : KeyCode -> Action
+keyDown key = case key of
+  81 -> LeverL 1 -- Q: left tread forward
+  65 -> LeverL -1 -- A: left tread backward
+  87 -> LeverR 1 -- W: right tread forward
+  83 -> LeverR -1 -- S: right tread backward
+  _ -> Pass
 
-type Action = Tick Time | Levers Vec2
+keyUp : KeyCode -> Action
+keyUp key = case key of
+  81 -> LeverL 0
+  65 -> LeverL 0
+  87 -> LeverR 0
+  83 -> LeverR 0
+  _ -> Pass
 
-tankKeys : List (Char, Vec2)
-tankKeys =
- [ ('Q', (1, 0))
- , ('A', (-1, 0))
- , ('W', (0, 1))
- , ('S', (0, -1))
- ]
-
-tankControl : (Set KeyCode) -> Vec2
-tankControl keys = List.foldl
-  (\(c, treads) sum ->
-    if Set.member (Char.toCode c) keys then
-      sum .+. treads
-    else
-      sum
-  ) (0, 0) tankKeys
-
+init : Cmd Action
+init = generate Init (Tanks.genSim 400 300)
 
 update : Action -> Simulation -> Simulation
 update action sim = case action of
+  Init newSim -> newSim
   Tick tick -> simulate tick sim
-  Levers levers -> case sim.tanks of
+  LeverL l -> case sim.tanks of
     player :: bots ->
-      { sim | tanks = { player | treads = levers } :: bots }
+      { sim | tanks = { player | treads = (l, snd player.treads) } :: bots }
     [] -> sim
+  LeverR r -> case sim.tanks of
+    player :: bots ->
+      { sim | tanks = { player | treads = (fst player.treads, r) } :: bots }
+    [] -> sim
+  Pass -> sim
 
-view : Signal.Address Action -> Simulation -> Html
-view address sim = div []
-  [ drawSim sim |> collage 400 300 |> Html.fromElement
+view : Simulation -> Html Action
+view sim = div []
+  [ drawSim sim |> collage 400 300 |> toHtml
   , p [] [text (case sim.tanks of
       player :: bots -> toString (Set.size player.inv)
       [] -> ""
     )]
   ]
 
-
-main = .html <| start
-  { init = ( initSim 400 300 (initialSeed 1337), Effects.none )
-  , update = (\a m -> (update a m, Effects.none))
+main : Program Never
+main = program
+  { init = ( Tanks.sim0, init )
+  , update = (\a m -> (update a m, Cmd.none))
   , view = view
-  , inputs =
-    [ Tick <~ fps 60
-    , Levers << tankControl <~ Keyboard.keysDown
+  , subscriptions = always <| Sub.batch
+    [ AnimationFrame.diffs Tick
+    , Keyboard.downs keyDown
+    , Keyboard.ups keyUp
     ]
   }

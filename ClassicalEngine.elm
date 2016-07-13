@@ -1,7 +1,7 @@
-module ClassicalEngine where
+module ClassicalEngine exposing (..)
 
 import Vec2 exposing (..)
-import Graphics.Collage exposing (..)
+import Collage exposing (..)
 import Color exposing (Color, charcoal, red, blue)
 
 --- Structures ---
@@ -98,13 +98,13 @@ drawBoid color showV actor = let
 
 drawObstacle : Color -> Circle -> List Form
 drawObstacle color circ = [
-  circle circ.r |> filled color |> Graphics.Collage.move circ.o,
-  circle circ.r |> outlined (solid charcoal) |> Graphics.Collage.move circ.o
+  circle circ.r |> filled color |> Collage.move circ.o,
+  circle circ.r |> outlined (solid charcoal) |> Collage.move circ.o
  ]
 
 drawOBR : LineStyle -> OBR etc -> List Form
 drawOBR style obr = [
   outlined style (uncurry rect obr.size) |>
-    Graphics.Collage.rotate (uncurry (flip atan2) obr.dir) |>
-    Graphics.Collage.move obr.o
+    Collage.rotate (uncurry (flip atan2) obr.dir) |>
+    Collage.move obr.o
  ]

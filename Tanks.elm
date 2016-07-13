@@ -1,23 +1,31 @@
-module Tanks where
+module Tanks exposing (Tank, Simulation,
+  sim0, genSim, stepTank, simulate, drawMine, drawSim)
 
 import Vec2 exposing (..)
 import Color exposing (red, green)
-import Graphics.Collage exposing (Form, filled, rect, solid, rotate)
+import Collage exposing (Form, filled, rect, solid, rotate)
 import ClassicalEngine exposing
   (Circle, OBR, wrap2, collideOBRxCircle, drawObstacle, drawOBR)
-import Random exposing (Seed, Generator, initialSeed, generate)
+import Random exposing (Generator)
 import Time exposing (Time)
 import Set exposing (Set)
 
 
 --- CONSTANTS ---
 
+mineSize : Float
 mineSize = 5
+tankSize : Float
 tankSize = 20
+numMines : Int
 numMines = 40
+numTanks : Int
 numTanks = 16
+genTime : Time
 genTime = 30 * Time.second
+moveTime : Time
 moveTime = 0.5 * Time.second
+treadMax : Float
 treadMax = 70
 
 
@@ -34,7 +42,6 @@ type alias Simulation =
  { size : Vec2
  , tanks : List Tank
  , mines : List Circle
- , seed : Seed
  , reset : Time
  }
 
@@ -52,6 +59,37 @@ tank0 =
  , next = moveTime
  }
 
+sim0 : Simulation
+sim0 =
+ { size = (0, 0)
+ , tanks = []
+ , mines = []
+ , reset = Time.hour
+ }
+
+genSim : Float -> Float -> Generator Simulation
+genSim w h = let
+  genMines = Random.list numMines
+    <| Random.map (\pos -> { o = pos, r = mineSize })
+    <| Random.pair
+        (Random.float (-w*0.5) (w*0.5))
+        (Random.float (-h*0.5) (h*0.5))
+  genTanks = Random.list (numTanks - 1)
+    <| Random.map (\moves -> { tank0 | moves = moves })
+    <| Random.list (genTime / moveTime |> ceiling)
+    <| Random.pair
+        (Random.float -1.0 1.0)
+        (Random.float -1.0 1.0)
+ in
+  Random.map2 (\mines tanks ->
+      { size = (w, h)
+      , tanks = tank0 :: tanks
+      , mines = mines
+      , reset = genTime
+      }
+    ) genMines genTanks
+
+{-
 initSim : Float -> Float -> Seed -> Simulation
 initSim w h seed0 = let
   genMines = Random.list numMines
@@ -74,6 +112,7 @@ initSim w h seed0 = let
   , seed = seed2
   , reset = genTime
   }
+-}
 
 simulate : Time -> Simulation -> Simulation
 simulate tick sim =
@@ -131,8 +170,8 @@ drawTank tank = drawOBR (solid green) tank ++ let
   barrel_pos = (tank.o .+. Vec2.rotate angle barrel_offset)
  in
   [ filled green (uncurry rect (tank.size .*. (0.2, 0.5)))
-    |> Graphics.Collage.rotate angle
-    |> Graphics.Collage.move barrel_pos
+    |> Collage.rotate angle
+    |> Collage.move barrel_pos
   ]
 
 drawMine : Circle -> List Form

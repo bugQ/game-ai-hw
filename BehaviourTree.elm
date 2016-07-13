@@ -1,4 +1,4 @@
-module BehaviourTree where
+module BehaviourTree exposing (..)
 
 type Result = Running | Success | Failure
 
