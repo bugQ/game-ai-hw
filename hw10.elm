@@ -5,11 +5,12 @@ import Element exposing (toHtml)
 import Set exposing (Set)
 import Char exposing (KeyCode)
 import Keyboard
-import Time exposing (Time)
+import Time exposing (Time, inSeconds)
 import AnimationFrame
 import Random exposing (initialSeed, generate)
 
-import Html exposing (Html, div, p, text)
+import Html exposing (Html, div, p, h2, h3, ol, li, text)
+import Html.Attributes exposing (style)
 import Html.App exposing (program)
 
 type Action = Init Simulation | Tick Time | LeverL Float | LeverR Float | Pass
@@ -48,12 +49,16 @@ update action sim = case action of
   Pass -> sim
 
 view : Simulation -> Html Action
-view sim = div []
-  [ drawSim sim |> collage 400 300 |> toHtml
-  , p [] [text (case sim.tanks of
-      player :: bots -> toString (Set.size player.inv)
-      [] -> ""
-    )]
+view sim = Html.main' [style [("width", "500px")]]
+  [ div [style [("float", "right")]]
+    [ h3 [] [text "Time"]
+    , p [] [text <| toString <| ceiling <| inSeconds sim.reset]
+    , h3 [] [text "Scores"]
+    , ol [] (List.map (\tank ->
+          li [] [text <| toString <| Set.size tank.inv]
+        ) sim.tanks)
+    ]
+  , drawSim sim |> collage 400 300 |> toHtml
   ]
 
 main : Program Never

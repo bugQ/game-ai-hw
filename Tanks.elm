@@ -89,31 +89,6 @@ genSim w h = let
       }
     ) genMines genTanks
 
-{-
-initSim : Float -> Float -> Seed -> Simulation
-initSim w h seed0 = let
-  genMines = Random.list numMines
-    <| Random.map (\pos -> { o = pos, r = mineSize })
-    <| Random.pair
-        (Random.float (-w*0.5) (w*0.5))
-        (Random.float (-h*0.5) (h*0.5))
-  (mines, seed1) = generate genMines seed0
-  genTanks = Random.list (numTanks - 1)
-    <| Random.map (\moves -> { tank0 | moves = moves })
-    <| Random.list (genTime / moveTime |> ceiling)
-    <| Random.pair
-        (Random.float -1.0 1.0)
-        (Random.float -1.0 1.0)
-  (tanks, seed2) = generate genTanks seed1
- in
-  { size = (w, h)
-  , tanks = tank0 :: tanks
-  , mines = mines
-  , seed = seed2
-  , reset = genTime
-  }
--}
-
 simulate : Time -> Simulation -> Simulation
 simulate tick sim =
   { sim | tanks = List.map ((stepTank tick)
@@ -126,6 +101,7 @@ simulate tick sim =
             ) tank.inv sim.mines
         })
     ) sim.tanks
+  , reset = sim.reset - tick
   }
 
 
