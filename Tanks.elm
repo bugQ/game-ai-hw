@@ -23,6 +23,8 @@ numTanks : Int
 numTanks = 16
 genTime : Time
 genTime = 30 * Time.second
+scoreTime : Time
+scoreTime = 3 * Time.second
 moveTime : Time
 moveTime = 0.5 * Time.second
 treadMax : Float
@@ -35,6 +37,7 @@ type alias Tank = OBR
  { treads : Vec2
  , inv : Set Vec2
  , moves : List Vec2
+ , history : List Vec2
  , next : Time
  }
 
@@ -56,6 +59,7 @@ tank0 =
  , treads = (0, 0)
  , inv = Set.empty
  , moves = []
+ , history = []
  , next = moveTime
  }
 
@@ -90,8 +94,25 @@ genSim w h = let
     ) genMines genTanks
 
 simulate : Time -> Simulation -> Simulation
-simulate tick sim =
-  { sim | tanks = List.map ((stepTank tick)
+simulate tick simi = let sim = { simi | reset = simi.reset - tick } in
+  if sim.reset > 0 then
+    stepSim tick sim
+  else if sim.reset < -scoreTime then
+    restart sim
+  else
+    sim
+
+restart : Simulation -> Simulation
+restart sim =
+  { sim
+  | reset = genTime
+  , tanks = List.map (\tank ->
+      { tank0 | moves = List.foldl (::) tank.moves tank.history }
+    ) sim.tanks
+  }
+
+stepSim : Time -> Simulation -> Simulation
+stepSim tick sim = { sim | tanks = List.map ((stepTank tick)
       >> (\tank -> { tank | o =
           wrap2 (sim.size .* -0.5) (sim.size .* 0.5) tank.o })
       >> (\tank -> { tank | inv =
@@ -101,9 +122,7 @@ simulate tick sim =
             ) tank.inv sim.mines
         })
     ) sim.tanks
-  , reset = sim.reset - tick
   }
-
 
 --- BEHAVIOURS ---
 
@@ -114,7 +133,12 @@ stepTank tick tank = let
       { tank | next = nextMove }
     else case tank.moves of
       move :: moves ->
-        { tank | treads = move, moves = moves, next = nextMove + moveTime }
+        { tank
+        | treads = move
+        , moves = moves
+        , history = move :: tank.history
+        , next = nextMove + moveTime
+        }
       [] -> { tank | next = 0 }
   dt = Time.inSeconds tick
   (treadL, treadR) = clamp2 -1 1 tank.treads .* treadMax
