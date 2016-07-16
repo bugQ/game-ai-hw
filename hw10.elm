@@ -49,17 +49,22 @@ update action sim = case action of
   Pass -> sim
 
 view : Simulation -> Html Action
-view sim = Html.main' [style [("width", "500px")]]
-  [ div [style [("float", "right")]]
-    [ h3 [] [text "Time"]
-    , p [] [text <| toString <| ceiling <| inSeconds sim.reset]
-    , h3 [] [text "Scores"]
-    , ol [] (List.map (\tank ->
-          li [] [text <| toString <| Set.size tank.inv]
-        ) sim.tanks)
-    ]
-  , drawSim sim |> collage 400 300 |> toHtml
-  ]
+view sim = let
+  hiscore = List.foldl (\tank hi -> max (Set.size tank.inv) hi) 0 sim.tanks
+ in
+  Html.main' [style [("width", "500px")]] (
+    [ div [style [("float", "right")]]
+      [ h3 [] [text "Time"]
+      , p [] [text <| toString <| ceiling <| inSeconds sim.reset]
+      , h3 [] [text "Scores"]
+      , ol [] (List.map (\tank -> let score = Set.size tank.inv in
+            li [style
+                (if score == hiscore then [("font-weight", "bold")] else [])]
+              [text (toString score)]
+          ) sim.tanks)
+      ]
+    , drawSim sim |> collage 400 300 |> toHtml
+    ] ++ if sim.reset > 0 then [] else [h2 [] [text "Round over"]])
 
 main : Program Never
 main = program
