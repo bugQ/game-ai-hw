@@ -30,7 +30,11 @@ moveTime = 0.5 * Time.second
 treadMax : Float
 treadMax = 70
 
+fitnessRadius : Float
+fitnessRadius = 100
 
+fitnessBonus : Float
+fitnessBonus = 1000
 --- STRUCTURES ---
 
 type alias Tank = OBR
@@ -38,6 +42,7 @@ type alias Tank = OBR
  , inv : Set Vec2
  , moves : List Vec2
  , history : List Vec2
+ , fitness : Float
  , next : Time
  }
 
@@ -60,6 +65,7 @@ tank0 =
  , inv = Set.empty
  , moves = []
  , history = []
+ , fitness = 0
  , next = moveTime
  }
 
@@ -115,12 +121,18 @@ stepSim : Time -> Simulation -> Simulation
 stepSim tick sim = { sim | tanks = List.map ((stepTank tick)
       >> (\tank -> { tank | o =
           wrap2 (sim.size .* -0.5) (sim.size .* 0.5) tank.o })
-      >> (\tank -> { tank | inv =
-          List.foldl (\mine inv -> case collideOBRxCircle tank mine of
-              Just _ -> Set.insert mine.o inv
-              Nothing -> inv
-            ) tank.inv sim.mines
-        })
+      >> (\tank ->  { tank | fitness =
+          tank.fitness + List.foldl
+            (\mine fitness -> max fitness (dist tank.o mine.o - fitnessRadius))
+            fitnessRadius sim.mines / fitnessRadius })
+      >> (\tank -> List.foldl (\mine tank -> case collideOBRxCircle tank mine of
+          Just _ -> { tank
+            | inv = Set.insert mine.o tank.inv
+            , fitness = tank.fitness +
+                if Set.member mine.o tank.inv then 0 else fitnessBonus
+            }
+          Nothing -> tank
+        ) tank sim.mines)
     ) sim.tanks
   }
 

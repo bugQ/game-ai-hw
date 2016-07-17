@@ -50,17 +50,18 @@ update action sim = case action of
 
 view : Simulation -> Html Action
 view sim = let
-  hiscore = List.foldl (\tank hi -> max (Set.size tank.inv) hi) 0 sim.tanks
+  hiscore = List.foldl (.fitness >> max) 0 sim.tanks
  in
-  Html.main' [style [("width", "500px")]] (
-    [ div [style [("float", "right")]]
+  Html.main' [style [("width", "600px")]] (
+    [ div [style [("float", "right"), ("width", "180px")]]
       [ h3 [] [text "Time"]
       , p [] [text <| toString <| ceiling <| inSeconds sim.reset]
       , h3 [] [text "Scores"]
-      , ol [] (List.map (\tank -> let score = Set.size tank.inv in
-            li [style
-                (if score == hiscore then [("font-weight", "bold")] else [])]
-              [text (toString score)]
+      , ol [] (List.map (\tank ->
+            li [style (if tank.fitness == hiscore
+                  then [("font-weight", "bold")] else [])]
+              [text (toString (Set.size tank.inv) ++
+                " (fitness " ++ toString (round tank.fitness) ++ ")")]
           ) sim.tanks)
       ]
     , drawSim sim |> collage 400 300 |> toHtml
