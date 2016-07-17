@@ -2,8 +2,8 @@ module Tanks exposing (Tank, Simulation,
   sim0, genSim, stepTank, simulate, drawMine, drawSim)
 
 import Vec2 exposing (..)
-import Color exposing (red, green)
-import Collage exposing (Form, filled, rect, solid, rotate)
+import Color exposing (red, green, grey)
+import Collage exposing (Form, filled, outlined, rect, solid, rotate)
 import ClassicalEngine exposing
   (Circle, OBR, wrap2, collideOBRxCircle, drawObstacle, drawOBR)
 import Random exposing (Generator)
@@ -13,28 +13,47 @@ import Set exposing (Set)
 
 --- CONSTANTS ---
 
+-- mines are circles with this radius
 mineSize : Float
 mineSize = 5
+
+-- tanks are squares with this width
 tankSize : Float
 tankSize = 20
+
+-- there are this many mines in the play area
 numMines : Int
 numMines = 40
+
+-- this many players, including one human, each control a tank
 numTanks : Int
 numTanks = 16
+
+-- each round lasts this long
 genTime : Time
 genTime = 30 * Time.second
-scoreTime : Time
-scoreTime = 3 * Time.second
+
+-- the score is visible for this long after each round
+overTime : Time
+overTime = 3 * Time.second
+
+-- bots vary their movement at this interval
 moveTime : Time
 moveTime = 0.5 * Time.second
+
+-- the left and right tank treads may each go this fast
 treadMax : Float
 treadMax = 70
 
+-- bots must remain within this radius to gain fitness points
 fitnessRadius : Float
 fitnessRadius = 100
 
+-- a bot receives this many points for disarming a mine
 fitnessBonus : Float
 fitnessBonus = 1000
+
+
 --- STRUCTURES ---
 
 type alias Tank = OBR
@@ -77,6 +96,7 @@ sim0 =
  , reset = Time.hour
  }
 
+-- returns a random generator that can generate a fully initialized simulation
 genSim : Float -> Float -> Generator Simulation
 genSim w h = let
   genMines = Random.list numMines
@@ -99,15 +119,17 @@ genSim w h = let
       }
     ) genMines genTanks
 
+-- advances the simulation by one frame, or restarts if time is up
 simulate : Time -> Simulation -> Simulation
 simulate tick simi = let sim = { simi | reset = simi.reset - tick } in
   if sim.reset > 0 then
     stepSim tick sim
-  else if sim.reset < -scoreTime then
+  else if sim.reset < -overTime then
     restart sim
   else
     sim
 
+-- resets tanks and round timer
 restart : Simulation -> Simulation
 restart sim =
   { sim
@@ -117,6 +139,7 @@ restart sim =
     ) sim.tanks
   }
 
+-- advances the simulation by one frame
 stepSim : Time -> Simulation -> Simulation
 stepSim tick sim = { sim | tanks = List.map ((stepTank tick)
       >> (\tank -> { tank | o =
@@ -138,6 +161,7 @@ stepSim tick sim = { sim | tanks = List.map ((stepTank tick)
 
 --- BEHAVIOURS ---
 
+-- moves tank treads, changes tread speeds based on move queue (unless empty)
 stepTank : Time -> Tank -> Tank
 stepTank tick tank = let
   nextMove = tank.next - tick
@@ -175,21 +199,24 @@ stepTank tick tank = let
 
 --- DRAWING ---
 
+-- draw a green square with a "barrel" rectangle pointing forward
 drawTank : Tank -> List Form
-drawTank tank = drawOBR (solid green) tank ++ let
+drawTank tank = let
   angle = (atan2 (snd tank.dir) (fst tank.dir))
   barrel_offset = tank.size .*. (0.0, 0.5)
   barrel_pos = (tank.o .+. Vec2.rotate angle barrel_offset)
  in
-  [ filled green (uncurry rect (tank.size .*. (0.2, 0.5)))
+  (filled green (uncurry rect (tank.size .*. (0.2, 0.5)))
     |> Collage.rotate angle
     |> Collage.move barrel_pos
-  ]
+  ) :: drawOBR (solid green) tank
 
+-- draw a red circle
 drawMine : Circle -> List Form
 drawMine = drawObstacle red
 
+-- draw all objects in the simulation
 drawSim : Simulation -> List Form
-drawSim {tanks, mines} =
-  List.foldl (drawTank >> (++)) [] tanks
-  ++ List.foldl (drawMine >> (++)) [] mines
+drawSim sim = outlined (solid grey) (uncurry rect sim.size) ::
+  List.foldl (drawTank >> (++)) [] sim.tanks ++
+  List.foldl (drawMine >> (++)) [] sim.mines
