@@ -51,7 +51,7 @@ fitnessRadius = 100
 
 -- a bot receives this many points for disarming a mine
 fitnessBonus : Float
-fitnessBonus = 1000
+fitnessBonus = 100
 
 
 --- STRUCTURES ---
@@ -145,9 +145,9 @@ stepSim tick sim = { sim | tanks = List.map ((stepTank tick)
       >> (\tank -> { tank | o =
           wrap2 (sim.size .* -0.5) (sim.size .* 0.5) tank.o })
       >> (\tank ->  { tank | fitness =
-          tank.fitness + List.foldl
-            (\mine fitness -> max fitness (dist tank.o mine.o - fitnessRadius))
-            fitnessRadius sim.mines / fitnessRadius })
+          tank.fitness + (fitnessRadius - List.foldl
+              (\mine -> min (dist tank.o mine.o)) fitnessRadius sim.mines)
+            / fitnessRadius * Time.inSeconds tick })
       >> (\tank -> List.foldl (\mine tank -> case collideOBRxCircle tank mine of
           Just _ -> { tank
             | inv = Set.insert mine.o tank.inv

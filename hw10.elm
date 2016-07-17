@@ -4,6 +4,7 @@ import Element exposing (toHtml)
 
 import Set exposing (Set)
 import Char exposing (KeyCode)
+import String
 import Keyboard
 import Time exposing (Time, inSeconds)
 import AnimationFrame
@@ -61,7 +62,7 @@ view sim = let
             li [style (if tank.fitness == hiscore
                   then [("font-weight", "bold")] else [])]
               [text (toString (Set.size tank.inv) ++
-                " (fitness " ++ toString (round tank.fitness) ++ ")")]
+                " (fitness " ++ String.left 7 (toString tank.fitness) ++ ")")]
           ) sim.tanks)
       ]
     , drawSim sim |> collage 400 300 |> toHtml
