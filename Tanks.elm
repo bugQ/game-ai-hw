@@ -228,7 +228,7 @@ stepTank tick tank = let
   else if treadL == -treadR then
     { tank | dir = Vec2.rotate ((treadR - treadL) / width * dt) tank.dir }
   else let
-    r = width / (1 - treadL / treadR) - width * 0.5
+    r = (treadR / (treadR - treadL) - 0.5) * width
     pivot = tank.o .-. (r *. tank.dir)
     v = (treadL + treadR) * 0.5
     new_dir = Vec2.rotate (v / r * dt) tank.dir
