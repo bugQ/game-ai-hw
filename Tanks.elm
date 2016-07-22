@@ -130,26 +130,32 @@ simulate : Time -> Simulation -> Simulation
 simulate tick sim = let sim = { sim | reset = sim.reset - tick } in
   if sim.reset > 0 then stepSim tick sim else sim
 
+resetTank : Tank -> Tank
+resetTank tank = { tank0 | moves = List.foldl (::) tank.moves tank.history }
+
 -- returns a generator for the next genetic generation in the simulation
 genGen : Simulation -> Generator Simulation
-genGen sim = let sim = restart sim in
+genGen sim = let
+  sim' = { sim | reset = genTime }
+  genDefault = Random.map (always sim) Random.bool
+  genCrossoverParams = Random.map3 (,,)
+    (Random.float 0 1) (Random.float 0 1) (Random.float 0 1)
+  genMutateParams = Random.list numMoves (Vec2.random (0, 0) (1, 1))
+ in
   case sim.tanks of
-    [] -> Random.map (always sim) Random.bool
-    player :: bots -> case List.sortBy .fitness bots of
-      [] -> Random.map (always sim) Random.bool
-      elite :: rest -> let
-        genCrossoverParams = Random.map3 (,,)
-          (Random.float 0 1) (Random.float 0 1) (Random.float 0 1)
-        genMutateParams = Random.list numMoves (Vec2.random (0, 0) (1, 1))
-        genGenParams = Random.list (numTanks - 2)
-          (Random.map2 (,) genCrossoverParams genMutateParams)
-       in
-        Random.map (\rand -> { sim
-            | tanks = player :: elite :: List.map
-              (\(pqr, uus) -> crossoverTanks sim.tanks pqr |> mutateTank uus)
+    [] -> genDefault
+    player :: bots ->
+      case List.sortBy (.fitness >> negate) bots |> List.map resetTank of
+        [] -> genDefault
+        elite :: rest ->
+          Random.map (\rand -> { sim'
+            | tanks = resetTank player :: elite :: List.map
+              (\(pqr, uus) -> crossoverTanks rest pqr |> mutateTank uus)
               rand
             , generation = sim.generation + 1
-            }) genGenParams
+            }
+          ) (Random.list (List.length rest) (Random.map2 (,)
+              genCrossoverParams genMutateParams))
 
 crossoverTanks : List Tank -> (Float, Float, Float) -> Tank
 crossoverTanks tanks (p, q, r) = let
@@ -164,17 +170,6 @@ crossoverTanks tanks (p, q, r) = let
 mutateTank : List Vec2 -> Tank -> Tank
 mutateTank uus tank = { tank | moves =
   mutateVec2s ((-1, -1), (1, 1)) 21 uus tank.moves }
-
-
--- resets tanks and round timer
-restart : Simulation -> Simulation
-restart sim =
-  { sim
-  | reset = genTime
-  , tanks = List.map (\tank ->
-      { tank0 | moves = List.foldl (::) tank.moves tank.history }
-    ) sim.tanks
-  }
 
 mutate : Tank -> Tank
 mutate tank = tank
