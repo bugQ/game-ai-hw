@@ -1,7 +1,8 @@
 module Tanks exposing (Tank, Simulation,
-  sim0, genSim, stepTank, simulate, drawMine, drawSim)
+  sim0, genSim, genGen, stepTank, simulate, drawMine, drawSim)
 
 import Vec2 exposing (..)
+import Genetics exposing (..)
 import Color exposing (red, green, grey)
 import Collage exposing (Form, filled, outlined, rect, solid, rotate)
 import ClassicalEngine exposing
@@ -9,7 +10,6 @@ import ClassicalEngine exposing
 import Random exposing (Generator)
 import Time exposing (Time)
 import Set exposing (Set)
-
 
 --- CONSTANTS ---
 
@@ -53,6 +53,14 @@ fitnessRadius = 100
 fitnessBonus : Float
 fitnessBonus = 100
 
+-- the ratio of children which are not direct copies of their parents
+crossoverChance : Float
+crossoverChance = 0.6
+
+
+numMoves : Int
+numMoves = ceiling (genTime / moveTime)
+
 
 --- STRUCTURES ---
 
@@ -70,6 +78,7 @@ type alias Simulation =
  , tanks : List Tank
  , mines : List Circle
  , reset : Time
+ , generation : Int
  }
 
 
@@ -94,6 +103,7 @@ sim0 =
  , tanks = []
  , mines = []
  , reset = Time.hour
+ , generation = 0
  }
 
 -- returns a random generator that can generate a fully initialized simulation
@@ -101,33 +111,60 @@ genSim : Float -> Float -> Generator Simulation
 genSim w h = let
   genMines = Random.list numMines
     <| Random.map (\pos -> { o = pos, r = mineSize })
-    <| Random.pair
-        (Random.float (-w*0.5) (w*0.5))
-        (Random.float (-h*0.5) (h*0.5))
+    <| Vec2.random (-w*0.5, -h*0.5) (w*0.5, h*0.5)
   genTanks = Random.list (numTanks - 1)
     <| Random.map (\moves -> { tank0 | moves = moves })
-    <| Random.list (genTime / moveTime |> ceiling)
-    <| Random.pair
-        (Random.float -1.0 1.0)
-        (Random.float -1.0 1.0)
+    <| Random.list numMoves
+    <| Vec2.random (-1, -1) (1, 1)
  in
   Random.map2 (\mines tanks ->
       { size = (w, h)
       , tanks = tank0 :: tanks
       , mines = mines
       , reset = genTime
-      }
-    ) genMines genTanks
+      , generation = 1
+      }) genMines genTanks
 
 -- advances the simulation by one frame, or restarts if time is up
 simulate : Time -> Simulation -> Simulation
-simulate tick simi = let sim = { simi | reset = simi.reset - tick } in
-  if sim.reset > 0 then
-    stepSim tick sim
-  else if sim.reset < -overTime then
-    restart sim
-  else
-    sim
+simulate tick sim = let sim = { sim | reset = sim.reset - tick } in
+  if sim.reset > 0 then stepSim tick sim else sim
+
+-- returns a generator for the next genetic generation in the simulation
+genGen : Simulation -> Generator Simulation
+genGen sim = let sim = restart sim in
+  case sim.tanks of
+    [] -> Random.map (always sim) Random.bool
+    player :: bots -> case List.sortBy .fitness bots of
+      [] -> Random.map (always sim) Random.bool
+      elite :: rest -> let
+        genCrossoverParams = Random.map3 (,,)
+          (Random.float 0 1) (Random.float 0 1) (Random.float 0 1)
+        genMutateParams = Random.list numMoves (Vec2.random (0, 0) (1, 1))
+        genGenParams = Random.list (numTanks - 2)
+          (Random.map2 (,) genCrossoverParams genMutateParams)
+       in
+        Random.map (\rand -> { sim
+            | tanks = player :: elite :: List.map
+              (\(pqr, uus) -> crossoverTanks sim.tanks pqr |> mutateTank uus)
+              rand
+            , generation = sim.generation + 1
+            }) genGenParams
+
+crossoverTanks : List Tank -> (Float, Float, Float) -> Tank
+crossoverTanks tanks (p, q, r) = let
+  parent1 = selectRanked tanks p |> Maybe.withDefault tank0
+  parent2 = selectRanked tanks q |> Maybe.withDefault tank0
+ in
+  if r < crossoverChance
+    then { parent1 | moves =
+      crossover (r / crossoverChance) parent1.moves parent2.moves }
+    else parent1
+
+mutateTank : List Vec2 -> Tank -> Tank
+mutateTank uus tank = { tank | moves =
+  mutateVec2s ((-1, -1), (1, 1)) 21 uus tank.moves }
+
 
 -- resets tanks and round timer
 restart : Simulation -> Simulation
@@ -138,6 +175,9 @@ restart sim =
       { tank0 | moves = List.foldl (::) tank.moves tank.history }
     ) sim.tanks
   }
+
+mutate : Tank -> Tank
+mutate tank = tank
 
 -- advances the simulation by one frame
 stepSim : Time -> Simulation -> Simulation

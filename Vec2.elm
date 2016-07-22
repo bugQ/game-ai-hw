@@ -1,5 +1,7 @@
 module Vec2 exposing (..)
 
+import Random exposing (Generator)
+
 -- floating-point only, for simplicity
 type alias Vec2 = (Float, Float)
 
@@ -90,3 +92,7 @@ clamp2 : Float -> Float -> Vec2 -> Vec2
 clamp2 min max p = let n = norm p in
   if n > max then p .* max ./ n else
     if n < min then p .* min ./ n else p
+
+random : Vec2 -> Vec2 -> Generator Vec2
+random (xmin, ymin) (xmax, ymax) =
+  Random.map2 (,) (Random.float xmin xmax) (Random.float ymin ymax)

@@ -35,19 +35,25 @@ keyUp key = case key of
 init : Cmd Action
 init = generate Init (Tanks.genSim 400 300)
 
-update : Action -> Simulation -> Simulation
+regen : Simulation -> Cmd Action
+regen sim = generate Init (Tanks.genGen sim)
+
+update : Action -> Simulation -> (Simulation, Cmd Action)
 update action sim = case action of
-  Init newSim -> newSim
-  Tick tick -> simulate tick sim
-  LeverL l -> case sim.tanks of
-    player :: bots ->
-      { sim | tanks = { player | treads = (l, snd player.treads) } :: bots }
-    [] -> sim
-  LeverR r -> case sim.tanks of
-    player :: bots ->
-      { sim | tanks = { player | treads = (fst player.treads, r) } :: bots }
-    [] -> sim
-  Pass -> sim
+  Init newSim -> (newSim, Cmd.none)
+  Tick tick -> (simulate tick sim
+    , if sim.reset < -3 * Time.second then regen sim else Cmd.none)
+  LeverL l -> (case sim.tanks of
+      player :: bots ->
+        { sim | tanks = { player | treads = (l, snd player.treads) } :: bots }
+      [] -> sim
+    , Cmd.none)
+  LeverR r -> (case sim.tanks of
+      player :: bots ->
+        { sim | tanks = { player | treads = (fst player.treads, r) } :: bots }
+      [] -> sim
+    , Cmd.none)
+  Pass -> (sim, Cmd.none)
 
 view : Simulation -> Html Action
 view sim = let
@@ -56,7 +62,7 @@ view sim = let
   Html.main' [style [("width", "600px")]] (
     [ div [style [("float", "right"), ("width", "180px")]]
       [ h3 [] [text "Time"]
-      , p [] [text <| toString <| ceiling <| inSeconds sim.reset]
+      , p [] [text <| String.left 4 <| toString <| inSeconds sim.reset]
       , h3 [] [text "Scores"]
       , ol [] (List.map (\tank ->
             li [style (if tank.fitness == hiscore
@@ -66,12 +72,13 @@ view sim = let
           ) sim.tanks)
       ]
     , drawSim sim |> collage 400 300 |> toHtml
+    , h3 [] [text ("Generation " ++ toString sim.generation)]
     ] ++ if sim.reset > 0 then [] else [h2 [] [text "Round over"]])
 
 main : Program Never
 main = program
   { init = ( Tanks.sim0, init )
-  , update = (\a m -> (update a m, Cmd.none))
+  , update = update
   , view = view
   , subscriptions = always <| Sub.batch
     [ AnimationFrame.diffs Tick
