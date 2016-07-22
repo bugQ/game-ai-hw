@@ -136,7 +136,6 @@ resetTank tank = { tank0 | moves = List.foldl (::) tank.moves tank.history }
 -- returns a generator for the next genetic generation in the simulation
 genGen : Simulation -> Generator Simulation
 genGen sim = let
-  sim' = { sim | reset = genTime }
   genDefault = Random.map (always sim) Random.bool
   genCrossoverParams = Random.map3 (,,)
     (Random.float 0 1) (Random.float 0 1) (Random.float 0 1)
@@ -148,10 +147,11 @@ genGen sim = let
       case List.sortBy (.fitness >> negate) bots |> List.map resetTank of
         [] -> genDefault
         elite :: rest ->
-          Random.map (\rand -> { sim'
+          Random.map (\rand -> { sim
             | tanks = resetTank player :: elite :: List.map
               (\(pqr, uus) -> crossoverTanks rest pqr |> mutateTank uus)
               rand
+            , reset = genTime
             , generation = sim.generation + 1
             }
           ) (Random.list (List.length rest) (Random.map2 (,)
