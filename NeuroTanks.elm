@@ -1,15 +1,18 @@
-module Tanks exposing (Tank, Simulation,
+module NeuroTanks exposing (Tank, Simulation,
   sim0, genSim, genGen, stepTank, simulate, drawMine, drawSim)
 
 import Vec2 exposing (..)
 import Genetics exposing (..)
+import NeuralNet exposing (NeuralNet)
 import Color exposing (red, green, grey)
 import Collage exposing (Form, filled, outlined, rect, solid, rotate)
 import ClassicalEngine exposing
   (Circle, OBR, wrap2, collideOBRxCircle, drawObstacle, drawOBR)
 import Random exposing (Generator)
+import Random.Float exposing (standardNormal)
 import Time exposing (Time)
 import Set exposing (Set)
+import Array exposing (Array)
 
 --- CONSTANTS ---
 
@@ -37,10 +40,6 @@ genTime = 30 * Time.second
 overTime : Time
 overTime = 3 * Time.second
 
--- bots vary their movement at this interval
-moveTime : Time
-moveTime = 0.5 * Time.second
-
 -- the left and right tank treads may each go this fast
 treadMax : Float
 treadMax = 70
@@ -57,9 +56,8 @@ fitnessBonus = 100
 crossoverChance : Float
 crossoverChance = 0.6
 
-
-numMoves : Int
-numMoves = ceiling (genTime / moveTime)
+brainStructure : List Int
+brainStructure = [2, 3, 2]
 
 
 --- STRUCTURES ---
@@ -67,16 +65,17 @@ numMoves = ceiling (genTime / moveTime)
 type alias Tank = OBR
  { treads : Vec2
  , inv : Set Vec2
- , moves : List Vec2
- , history : List Vec2
+ , brain : NeuralNet
+ , strategy : NeuralNet
  , fitness : Float
- , next : Time
  }
+
+type alias Mine = Circle
 
 type alias Simulation =
  { size : Vec2
  , tanks : List Tank
- , mines : List Circle
+ , mines : List Mine
  , reset : Time
  , generation : Int
  }
@@ -91,10 +90,9 @@ tank0 =
  , size = (tankSize, tankSize)
  , treads = (0, 0)
  , inv = Set.empty
- , moves = []
- , history = []
+ , brain = []
+ , strategy = []
  , fitness = 0
- , next = moveTime
  }
 
 sim0 : Simulation
@@ -113,9 +111,8 @@ genSim w h = let
     <| Random.map (\pos -> { o = pos, r = mineSize })
     <| Vec2.random (-w*0.5, -h*0.5) (w*0.5, h*0.5)
   genTanks = Random.list (numTanks - 1)
-    <| Random.map (\moves -> { tank0 | moves = moves })
-    <| Random.list numMoves
-    <| Vec2.random (-1, -1) (1, 1)
+    <| Random.map2 (\b s -> { tank0 | brain = b, strategy = s })
+      (NeuralNet.random brainStructure) (NeuralNet.random brainStructure)
  in
   Random.map2 (\mines tanks ->
       { size = (w, h)
@@ -131,7 +128,7 @@ simulate tick sim = let sim = { sim | reset = sim.reset - tick } in
   if sim.reset > 0 then stepSim tick sim else sim
 
 resetTank : Tank -> Tank
-resetTank tank = { tank0 | moves = List.foldl (::) tank.moves tank.history }
+resetTank tank = { tank0 | brain = tank.brain, strategy = tank.strategy }
 
 -- returns a generator for the next genetic generation in the simulation
 genGen : Simulation -> Generator Simulation
@@ -139,7 +136,8 @@ genGen sim = let
   genDefault = Random.map (always sim) Random.bool
   genCrossoverParams = Random.map3 (,,)
     (Random.float 0 1) (Random.float 0 1) (Random.float 0 1)
-  genMutateParams = Random.list numMoves (Vec2.random (0, 0) (1, 1))
+  genMutateParams = Random.map2 (,)
+    standardNormal (NeuralNet.random brainStructure)
  in
   case sim.tanks of
     [] -> genDefault
@@ -163,18 +161,23 @@ crossoverTanks tanks (p, q, r) = let
   parent2 = selectRanked tanks q |> Maybe.withDefault tank0
  in
   if r < crossoverChance
-    then { parent1 | moves =
-      crossover (r / crossoverChance) parent1.moves parent2.moves }
+    then let r = r / crossoverChance in
+      { parent1
+      | brain = NeuralNet.crossover r parent1.brain parent2.brain
+      , strategy = NeuralNet.crossover r parent1.strategy parent2.strategy
+      }
     else parent1
 
-mutateTank : List Vec2 -> Tank -> Tank
-mutateTank uus tank = { tank | moves =
-  mutateVec2s ((-1, -1), (1, 1)) 21 uus tank.moves }
+mutateTank : (Float, NeuralNet) -> Tank -> Tank
+mutateTank (u, u's) tank = let
+  (brain, strategy) = NeuralNet.mutate u u's tank.strategy tank.brain
+ in
+  { tank | brain = brain, strategy = strategy }
 
 -- advances the simulation by one frame
 stepSim : Time -> Simulation -> Simulation
 stepSim tick sim = { sim | tanks = List.map (
-    steerTank tick >> stepTank tick
+    steerTank sim.mines >> stepTank tick
       >> (\tank -> { tank | o =
           wrap2 (sim.size .* -0.5) (sim.size .* 0.5) tank.o })
       >> (\tank ->  { tank | fitness =
@@ -195,20 +198,30 @@ stepSim tick sim = { sim | tanks = List.map (
 
 --- BEHAVIOURS ---
 
--- changes tread speeds based on move queue (unless empty)
-steerTank : Time -> Tank -> Tank
-steerTank tick tank = let nextMove = tank.next - tick in
-  if nextMove > 0 then
-      { tank | next = nextMove }
-    else case tank.moves of
-      move :: moves ->
-        { tank
-        | treads = move
-        , moves = moves
-        , history = move :: tank.history
-        , next = nextMove + moveTime
-        }
-      [] -> { tank | next = 0 }
+touchDist : Float
+touchDist = tankSize / 2 + mineSize
+steeringOffset : Float
+steeringOffset = touchDist / (fitnessBonus - touchDist)
+steeringFactor : Float
+steeringFactor = steeringOffset * fitnessBonus
+
+steerTank : List Mine -> Tank -> Tank
+steerTank mines tank = if List.length tank.brain == 0 then tank else let
+  polars = mines
+    |> List.filter (\mine -> not (Set.member mine.o tank.inv))
+    |> List.map (\mine -> let diff = mine.o .-. tank.o in
+      (norm diff, angle diff - angle tank.dir))
+  inputs = case List.minimum polars of
+    Just (dist, angle) ->
+      Array.fromList [steeringFactor / dist - steeringOffset, angle / pi]
+    Nothing -> Array.repeat 2 0
+  outputs = NeuralNet.propagate tank.brain inputs
+ in
+  { tank | treads =
+    ( Maybe.withDefault 0 (Array.get 0 outputs)
+    , Maybe.withDefault 0 (Array.get 1 outputs)
+    )
+  }
 
 -- moves tank treads (thus moving the tank)
 stepTank : Time -> Tank -> Tank
@@ -249,7 +262,7 @@ drawTank tank = let
   ) :: drawOBR (solid green) tank
 
 -- draw a red circle
-drawMine : Circle -> List Form
+drawMine : Mine -> List Form
 drawMine = drawObstacle red
 
 -- draw all objects in the simulation

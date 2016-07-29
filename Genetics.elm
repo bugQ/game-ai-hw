@@ -1,6 +1,6 @@
 module Genetics exposing (..)
 
-import Vec2 exposing (..)
+import Vec2 exposing (Vec2)
 import List exposing (length, head, take, drop, repeat, indexedMap)
 
 type alias Chromosome a = List a

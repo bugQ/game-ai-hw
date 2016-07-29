@@ -51,6 +51,10 @@ oppose (x, y) = (-x, -y)
 perp : Vec2 -> Vec2
 perp (x, y) = (-y, x)
 
+-- angle of vector (radians) relative to x axis
+angle : Vec2 -> Float
+angle (x, y) = atan2 y x
+
 -- norm = magnitude = length
 norm : Vec2 -> Float
 norm p = sqrt (dot p p)
