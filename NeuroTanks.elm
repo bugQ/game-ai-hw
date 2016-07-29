@@ -250,16 +250,18 @@ stepTank tick tank = let
 --- DRAWING ---
 
 -- draw a green square with a "barrel" rectangle pointing forward
-drawTank : Tank -> List Form
-drawTank tank = let
+drawTank : Bool -> Tank -> List Form
+drawTank thick tank = let
   angle = (atan2 (snd tank.dir) (fst tank.dir))
   barrel_offset = tank.size .*. (0.0, 0.5)
   barrel_pos = (tank.o .+. Vec2.rotate angle barrel_offset)
+  lineStyle = solid green
+  fullStyle = if thick then { lineStyle | width = 3 } else lineStyle
  in
   (filled green (uncurry rect (tank.size .*. (0.2, 0.5)))
     |> Collage.rotate angle
     |> Collage.move barrel_pos
-  ) :: drawOBR (solid green) tank
+  ) :: drawOBR fullStyle tank
 
 -- draw a red circle
 drawMine : Mine -> List Form
@@ -267,6 +269,9 @@ drawMine = drawObstacle red
 
 -- draw all objects in the simulation
 drawSim : Simulation -> List Form
-drawSim sim = outlined (solid grey) (uncurry rect sim.size) ::
-  List.foldl (drawTank >> (++)) [] sim.tanks ++
-  List.foldl (drawMine >> (++)) [] sim.mines
+drawSim sim = let
+  hiscore = List.foldl (.fitness >> max) 0 sim.tanks
+ in
+  outlined (solid grey) (uncurry rect sim.size)
+    :: List.foldl (\t -> drawTank (t.fitness == hiscore) t |> (++)) [] sim.tanks
+    ++ List.foldl (drawMine >> (++)) [] sim.mines
