@@ -1,4 +1,4 @@
-module StateMachine where
+module StateMachine exposing (..)
 
 import Array exposing (Array)
 import Maybe exposing (andThen)

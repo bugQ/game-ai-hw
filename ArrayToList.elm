@@ -1,4 +1,4 @@
-module ArrayToList where
+module ArrayToList exposing (..)
 
 import Array exposing (Array, foldl, get)
 import Maybe exposing (andThen)
@@ -20,10 +20,10 @@ filterMap f aa = foldl (\a bb -> case f a of
 indexedMap : (Int -> a -> b) -> Array a -> List b
 indexedMap f aa = foldl (\a (i, bb) -> (i + 1, f i a :: bb)) (0, []) aa |> snd
 
-indexedFilterMap : (Int -> a -> Maybe b) -> Array a -> List b
-indexedFilterMap f aa = Array.foldl (\a (i, bb) -> case f i a of
+indexedFilter : (Int -> a -> Maybe b) -> Array a -> List b
+indexedFilter f aa = Array.foldl (\a (i, bb) -> case f i a of
   Just b -> (i + 1, b :: bb)
   Nothing -> (i + 1, bb)) (0, []) aa |> snd
 
 indices : a -> Array a -> List Int
-indices x aa = indexedFilterMap (\i a -> if a == x then Just i else Nothing) aa
+indices x aa = indexedFilter (\i a -> if a == x then Just i else Nothing) aa

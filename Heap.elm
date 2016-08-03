@@ -1,4 +1,4 @@
-module Heap where
+module Heap exposing (..)
 
 type Heap comparable = Leaf | Node comparable (List (Heap comparable))
 

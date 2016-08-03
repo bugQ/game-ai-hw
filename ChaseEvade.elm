@@ -1,8 +1,8 @@
-module ChaseEvade where
+module ChaseEvade exposing (..)
 
 import Color exposing (..)
-import Graphics.Collage exposing (..)
-import Graphics.Element exposing (Element)
+import Collage exposing (..)
+import Element exposing (Element)
 import Random exposing (Generator, generate, initialSeed, Seed)
 import Time exposing (..)
 
@@ -17,15 +17,15 @@ type alias Simulation = {
   target : Vec2,
   chaser : Actor {},
   evader : Actor {},
-  rand : Generator Vec2,
-  seed : Seed,
   reset : Float
 }
 
 
 --- Constants ---
 
+maxA : Float
 maxA = 50
+maxV : Float
 maxV = 100
 
 
@@ -38,7 +38,7 @@ chase maxV maxA target chaser = { chaser |
 
 evade : Float -> Float -> Vec2 -> Actor etc -> Actor etc
 evade maxV maxA target evader = { evader |
-  a =  normalize (target .-. evader.pos) .* -maxV .-. evader.v
+  a = normalize (target .-. evader.pos) .* -maxV .-. evader.v
     |> clamp2 0 maxA }
 
 arrive : Float -> Float -> Vec2 -> Actor etc -> Actor etc
@@ -54,45 +54,40 @@ arrive maxV maxA target arriver = let
 
 --- Simulation ---
 
-initSim : Seed -> Simulation
-initSim seed0 = let
-  rand = Random.pair (Random.float -1 1) (Random.float -1 1)
-  (r0, seed1) = generate rand seed0
-  (r1, seed2) = generate rand seed1
-  (r2, seed3) = generate rand seed2
-  (r3, seed4) = generate rand seed3
- in {
-   quarry = {pos = r0 .* 200, v = r1 .* 40, a = (0, 0)},
-   target = r0 .* 200 .+. r1 .* 40,
-   chaser = {pos = r2 .* 200, v = (0, 0), a = (0, 0)},
-   evader = {pos = r3 .* 200, v = (0, 0), a = (0, 0)},
-   rand = rand,
-   seed = seed4,
-   reset = 0
-  }
+initSim : Generator Simulation
+initSim = let
+  vec200 = Random.pair (Random.float -200 200) (Random.float -200 200)
+  vec40 = Random.pair (Random.float -40 40) (Random.float -40 40)
+ in Random.map4 (\r0 r1 r2 r3 ->
+    { quarry = {pos = r0 .* 200, v = r1 .* 40, a = (0, 0)}
+    , target = r0 .* 200 .+. r1 .* 40
+    , chaser = {pos = r2 .* 200, v = (0, 0), a = (0, 0)}
+    , evader = {pos = r3 .* 200, v = (0, 0), a = (0, 0)}
+    , reset = Time.second * 10
+    }
+  ) vec200 vec40 vec200 vec200
 
 simulate : Time -> Simulation -> Simulation
-simulate t sim = if sim.reset > 10 then initSim sim.seed else
-  let dt = (inSeconds t) in
-  { sim |
-   quarry = sim.quarry |> stepActor maxV dt,
-   target = sim.quarry.pos .+. sim.quarry.v .*
-     (dist sim.target sim.chaser.pos / maxV),
-   chaser = sim.chaser |> chase maxV maxA sim.target |> stepActor maxV dt,
-   evader = sim.evader |> evade maxV maxA sim.target |> stepActor maxV dt,
-   reset = sim.reset + (inSeconds t)
+simulate t sim = let dt = (inSeconds t) in
+  { sim
+  | quarry = sim.quarry |> stepActor maxV dt
+  , target = sim.quarry.pos .+. sim.quarry.v .*
+     (dist sim.target sim.chaser.pos / maxV)
+  , chaser = sim.chaser |> chase maxV maxA sim.target |> stepActor maxV dt
+  , evader = sim.evader |> evade maxV maxA sim.target |> stepActor maxV dt
+  , reset = sim.reset - (inSeconds t)
   }
 
 
 --- Drawing ---
 
 drawTarget : LineStyle -> Vec2 -> List Form
-drawTarget style target = [
-  outlined style (circle 5) |> move target,
-  outlined style (circle 8) |> move target,
-  traced style <| segment (target .+. (0, 15)) (target .-. (0, 15)),
-  traced style <| segment (target .+. (15, 0)) (target .-. (15, 0))
- ]
+drawTarget style target =
+  [ outlined style (circle 5) |> move target
+  , outlined style (circle 8) |> move target
+  , traced style <| segment (target .+. (0, 15)) (target .-. (0, 15))
+  , traced style <| segment (target .+. (15, 0)) (target .-. (15, 0))
+  ]
 
 drawSim : Simulation -> Element
 drawSim sim = collage 500 500 (

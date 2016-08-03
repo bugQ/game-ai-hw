@@ -1,4 +1,4 @@
-module PathFollowing where
+module PathFollowing exposing (..)
 
 import Vec2 exposing (..)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
@@ -9,28 +9,35 @@ import ChaseEvade exposing (chase, arrive, drawTarget)
 import PathFinding exposing (AStarState,
   initSearch, aStarStep, traceCrumbs, drawPath, drawRunningCosts)
 import Random exposing (Seed, Generator, generate)
-import Shuffle exposing (shuffle)
+import Random.Array exposing (shuffle)
 import Time exposing (Time, inSeconds)
 import Color exposing (Color, yellow, green, red, grey)
-import Graphics.Collage exposing (Form, circle, solid, filled, move)
-import Text exposing (fromString)
+import Collage exposing (Form, circle, solid, filled, move)
 import Array exposing (slice)
-import Debug
+
 
 --- CONSTANTS ---
 -- (mostly) --
 
+gridW : Int
 gridW = 20
+gridH : Int
 gridH = 20
+spacing : Float
 spacing = 30
+maxV : GridNode -> Float
 maxV node = case node of
   Obstacle -> 5
   _ -> 40 / Grid.cost node
+maxA : Float
 maxA = 70
+numExplorers : Int
 numExplorers = 15
 
 
 --- STRUCTURES ---
+
+type Action = Init Simulation | Tick Time | Plot Point
 
 type Exploration = Plotting Point | Seeking Path | Arriving Point | Resting
 
@@ -43,7 +50,6 @@ type alias Explorer etc = Actor (SearchState etc)
 
 type alias Simulation =
  { grid : Grid
- , seed : Seed
  , explorers : List (Explorer {})
  }
 
@@ -75,44 +81,46 @@ explore e grid = let
 
 --- SIMULATION ---
 
-initSim : Seed -> Simulation
-initSim seed0 = let
-  (grid, seed1) = Grid.newRand gridW gridH spacing seed0
-  indices = Array.initialize (Array.length grid.array) identity
-  (randIndices, seed2) = shuffle seed1 indices
-  openIndices = Array.filter
-    (\i -> Array.get i grid.array /= Just Obstacle) randIndices
-  points = Array.toList openIndices |> List.take numExplorers
-    |> List.map ((flip Grid.deindex) grid)
+initSim : Generator Simulation
+initSim = let
+  genGrid = Grid.random gridW gridH spacing
+  genIndices = shuffle (Array.initialize (gridW * gridH) identity)
  in
-  { grid = grid
-  , seed = seed2
-  , explorers = List.map (\p ->
-      { pos = gridPointToScreen p grid
-      , v = (0, 0)
-      , a = (0, 0)
-      , search = initSearch p grid
-      , state = Resting
-      }
-    ) points
-  }
+  Random.map2 (\grid indices -> let
+    openIndices = Array.filter
+      (\i -> Array.get i grid.array /= Just Obstacle) indices
+    points = Array.toList openIndices |> List.take numExplorers
+      |> List.map ((flip Grid.deindex) grid)
+   in
+    { grid = grid
+    , explorers = List.map (\p ->
+        { pos = gridPointToScreen p grid
+        , v = (0, 0)
+        , a = (0, 0)
+        , search = initSearch p grid
+        , state = Resting
+        }
+      ) points
+    }
+  ) genGrid genIndices
 
-simulate : Time -> Simulation -> Simulation
+simulate : Time -> Simulation -> (Simulation, Cmd Action)
 simulate t sim = let
   dt = inSeconds t
-  (new_explorers, new_seed) = List.foldr (\e (list, seed0) ->
-     let
-       node = Grid.get (screenPointToGrid e.pos sim.grid) sim.grid
-       new_e = explore (e |> stepActor (maxV node) dt) sim.grid
-      in case new_e.state of
-        Resting -> let (goal, seed1) = generate (Grid.rand sim.grid) seed0 in
-          ({ new_e
-           | state = Plotting goal
-           , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
-           } :: list, seed1)
-        _ -> (new_e :: list, seed0)
-    ) ([], sim.seed) sim.explorers
- in { sim | explorers = new_explorers, seed = new_seed }
+  (new_explorers, cmd) = List.foldr (\e (list, cmd) -> let
+      node = Grid.get (screenPointToGrid e.pos sim.grid) sim.grid
+      new_e = explore (e |> stepActor (maxV node) dt) sim.grid
+     in (new_e :: list, case new_e.state of
+        Resting -> Random.generate Plot (Grid.samplePoint sim.grid)
+--          let (goal, seed1) = generate (Grid.samplePoint sim.grid) seed0 in
+--          ({ new_e
+--           | state = Plotting goal
+--           , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
+--           } :: list, seed1)
+        _ -> cmd
+      )
+    ) ([], Cmd.none) sim.explorers
+ in ({ sim | explorers = new_explorers }, cmd)
 
 
 --- DRAWING ---

@@ -1,12 +1,12 @@
-module Grid where
+module Grid exposing (..)
 
-import Graphics.Collage exposing (..)
+import Collage exposing (..)
 import Array exposing (Array)
 import ArrayToList
 import Color exposing (lightCharcoal, lightBrown, blue, darkCharcoal)
 import Vec2 exposing (..)
 import Random exposing (Generator, Seed)
-import Shuffle exposing (shuffle)
+import Random.Array
 
 type GridNode = Road | Sand | Water | Obstacle
 type alias Point = (Int, Int)
@@ -27,7 +27,8 @@ fromVec2 (x, y) = (round x, round y)
 size : Grid -> Int
 size grid = grid.width * Array.length grid.array
 repeat : Int -> Int -> Float -> GridNode -> Grid
-repeat w h sp node = { array = Array.repeat (w * h) node, width = w, spacing = sp }
+repeat w h spacing node =
+  { array = Array.repeat (w * h) node, width = w, spacing = spacing }
 inGrid : Point -> Grid -> Bool
 inGrid (x, y) grid = x >= 0 && y >= 0
   && x < grid.width && y * grid.width < Array.length grid.array
@@ -40,23 +41,25 @@ get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Obstacle
 set : Point -> GridNode -> Grid -> Grid
 set p node grid = { grid | array = Array.set (index p grid) node grid.array }
 
-rand : Grid -> Generator Point
-rand grid = let gridH = Array.length grid.array // grid.width in
+samplePoint : Grid -> Generator Point
+samplePoint grid = let gridH = Array.length grid.array // grid.width in
   Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
 
-randomize : Grid -> Seed -> (Grid, Seed)
-randomize grid seed = let
-  checkerboard = Array.initialize (Array.length grid.array) (\i -> case i % 4 of
+shuffle : Grid -> Generator Grid
+shuffle grid = Random.map (\array -> { grid | array = array })
+  (Random.Array.shuffle grid.array)
+
+random : Int -> Int -> Float -> Generator Grid
+random w h spacing = let
+  board = Array.initialize (w * h) (\i -> case i % 4 of
     1 -> Water
     2 -> Sand
     3 -> Road
     _ -> Obstacle)
-  (shuffleboard, seed1) = shuffle seed checkerboard
- in ({ grid | array = shuffleboard }, seed1)
+ in
+  shuffle { array = board, width = w, spacing = spacing }
 
-newRand : Int -> Int -> Float -> Seed -> (Grid, Seed)
-newRand w h spacing seed = randomize (repeat w h spacing Water) seed
-
+cost : GridNode -> Float
 cost node = case node of
   Road -> 1
   Sand -> 2

@@ -1,29 +1,32 @@
-module TreasureGame where
+module TreasureGame exposing (..)
 
 import Vec2 exposing (Vec2)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
 import Grid exposing (Grid, Point, GridNode(Obstacle),
   deindex, screenPointToGrid, gridPointToScreen, drawGrid)
-import PathFinding exposing (AStarState,
+import PathFinding exposing (AStarState, state0,
   initSearch, drawRunningCosts, drawPath)
 import PathFollowing exposing (
   Exploration(Plotting, Seeking, Arriving, Resting), maxV, explore, stateColor)
 import StateMachine exposing (State, Condition, Action, StateMachine,
   addRule, apprise)
-import Shuffle exposing (shuffle)
 import ArrayToList
 import Array exposing (Array)
-import Random exposing (Seed)
+import Random.Array exposing (shuffle)
+import Random exposing (Generator)
 import Time exposing (Time, inSeconds)
 import Text exposing (Text)
 import Color exposing (..)
-import Graphics.Collage exposing (Form, text, move)
-import Debug
+import Collage exposing (Form, text, move)
+
 
 --- CONSTANTS ---
 
+gridW : Int
 gridW = 20
+gridH : Int
 gridH = 20
+spacing : Float
 spacing = 30
 
 type KeyColor = R | G | B
@@ -43,7 +46,7 @@ states = Array.fromList
   , "Seek Treasure"
   , "Celebrate !!"
   ]
- 
+
 --- STRUCTURES ---
 
 type alias Explorer = PathFollowing.Explorer { inv : List Prop }
@@ -56,13 +59,34 @@ type alias Dungeon =
 
 type alias Simulation = StateMachine Dungeon
 
+explorer0 : Explorer
+explorer0 =
+  { pos = (0.0, 0.0)
+  , v = (0.0, 0.0)
+  , a = (0.0, 0.0)
+  , search = PathFinding.state0
+  , state = Resting
+  , inv = []
+  }
+
+dungeon0 : Dungeon
+dungeon0 =
+  { floor = Grid.repeat gridW gridH spacing Obstacle
+  , loot = []
+  , explorer = explorer0
+  }
+
+sim0 : Simulation
+sim0 = StateMachine.new Array.empty dungeon0
 
 --- BEHAVIOUR ---
 
+isKey : Prop -> Bool
 isKey prop = case prop of
   Key _ -> True
   _ -> False
 
+isLockedDoor : Prop -> Bool
 isLockedDoor prop = case prop of
   Door _ False -> True
   _ -> False
@@ -146,35 +170,38 @@ rules =
    )
  ]
 
-initDungeon : Seed -> Dungeon
-initDungeon seed0 = let
-  (grid, seed1) = Grid.newRand gridW gridH spacing seed0
-  indices = Array.initialize (Array.length grid.array) identity
-  (randIndices, seed2) = shuffle seed1 indices
-  openIndices = Array.filter
-    (\i -> Array.get i grid.array /= Just Obstacle) randIndices
-  props = Array.slice 1 (List.length initProps + 1) openIndices
-    |> ArrayToList.map ((flip deindex) grid) |> List.map2 (,) initProps
-  start = deindex (Array.get 0 openIndices |> Maybe.withDefault 0) grid
+initDungeon : Generator Dungeon
+initDungeon = let
+  genGrid = Grid.random gridW gridH spacing
+  genIndices = shuffle (Array.initialize (gridW * gridH) identity)
  in
-  { floor = grid
-  , loot = props
-  , explorer =
-    { pos = gridPointToScreen start grid
-    , v = (0.0, 0.0)
-    , a = (0.0, 0.0)
-    , search = initSearch start grid
-    , state = Resting
-    , inv = []
+  Random.map2 (\grid randIndices -> let
+    openIndices = Array.filter
+      (\i -> Array.get i grid.array /= Just Obstacle) randIndices
+    props = Array.slice 1 (List.length initProps + 1) openIndices
+      |> ArrayToList.map ((flip deindex) grid) |> List.map2 (,) initProps
+    start = deindex (Array.get 0 openIndices |> Maybe.withDefault 0) grid
+   in
+    { floor = grid
+    , loot = props
+    , explorer =
+      { pos = gridPointToScreen start grid
+      , v = (0.0, 0.0)
+      , a = (0.0, 0.0)
+      , search = initSearch start grid
+      , state = Resting
+      , inv = []
+      }
     }
-  }
+  ) genGrid genIndices
 
 
 --- SIMULATION ---
 
-initSim : Seed -> Simulation
-initSim seed = List.foldl addRule
-  (StateMachine.new states (initDungeon seed)) rules
+initSim : Generator Simulation
+initSim = Random.map
+  (\dungeon -> List.foldl addRule (StateMachine.new states dungeon) rules)
+  initDungeon
 
 runDungeon : Time -> Dungeon -> Dungeon
 runDungeon t dungeon = let

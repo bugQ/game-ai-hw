@@ -1,12 +1,12 @@
-module PathFinding where
+module PathFinding exposing (..)
 
 import Array exposing (Array)
 import Maybe exposing (withDefault)
-import Graphics.Collage exposing (Form,
+import Collage exposing (Form,
   traced, filled, dashed, circle, move, text, path)
 import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
-import ArrayToList exposing (indexedFilterMap)
+import ArrayToList exposing (indexedFilter)
 import Vec2 exposing (Vec2, dist)
 import Grid exposing (Grid, Point, GridNode, Path, toVec2, inGrid,
   neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
@@ -14,16 +14,20 @@ import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
 import Time exposing (Time)
 import String exposing (left)
-import Debug
 
 
 --- CONSTANTS ---
 
+gridW : Int
 gridW = 15
+gridH : Int
 gridH = 15
+spacing : Float
 spacing = 40
+maxBlocks : Int
 maxBlocks = 90
-inf = 1.0 / 0.0
+inf : Float
+inf = 1/0
 
 
 --- STRUCTURES ---
@@ -33,8 +37,6 @@ type alias Simulation =
  , start : Point
  , goal : Point
  , search : AStarState
- , rand : Generator Point
- , seed : Seed
  , restart : Int
  }
 
@@ -44,6 +46,14 @@ type alias AStarState =
  , running_cost : Array Float
  , finished : Bool
  }
+
+state0 : AStarState
+state0 =
+  { frontier = Heap.Leaf
+  , breadcrumbs = Array.empty
+  , running_cost = Array.empty
+  , finished = True
+  }
 
 
 --- BEHAVIOR ---
@@ -100,32 +110,34 @@ traceCrumbs p crumbs grid = let
 
 --- SIMULATION ---
 
-initSim : Seed -> Simulation
-initSim seed0 = let
+initSim : Generator Simulation
+initSim = let
   emptyGrid = Grid.repeat gridW gridH spacing Grid.Road
-  randp = Grid.rand emptyGrid
-  (indices, seed1) = generate (Random.list maxBlocks randp) seed0
-  grid = List.foldr ((flip Grid.set) Grid.Obstacle) emptyGrid indices
-  openNodes = indexedFilterMap (\i node -> case node of
-    Grid.Road -> Just i
-    _ -> Nothing) grid.array
-  randn = Random.int 0 (List.length openNodes)
-  (startn, seed2) = generate randn seed1
-  (goaln, seed3) = generate randn seed2
-  start = Grid.deindex (List.drop startn openNodes |> List.head |> withDefault 0) grid
-  goal = Grid.deindex (List.drop goaln openNodes |> List.head |> withDefault 0) grid
+  genIndices = Random.list maxBlocks (Grid.samplePoint emptyGrid)
+  genGrid = Random.map
+    (\indices -> List.foldr ((flip Grid.set) Grid.Obstacle) emptyGrid indices)
+    genIndices
+  genIndex = Random.int 0 maxBlocks
  in
-  { grid = grid
-  , start = start
-  , goal = goal
-  , search = initSearch start grid
-  , rand = randp
-  , seed = seed3
-  , restart = 20
-  }
+  Random.map3 (\grid i_start i_goal -> let
+    openNodes = Array.fromList <|
+      indexedFilter (\i node -> case node of
+        Grid.Road -> Just i
+        _ -> Nothing
+      ) grid.array
+    start = Grid.deindex (Array.get i_start openNodes |> Maybe.withDefault 0) grid
+    goal = Grid.deindex (Array.get i_goal openNodes |> Maybe.withDefault 0) grid
+   in
+    { grid = grid
+    , start = start
+    , goal = goal
+    , search = initSearch start grid
+    , restart = 20
+    }
+  ) genGrid genIndex genIndex
 
 simulate : Time -> Simulation -> Simulation
-simulate _ sim = if sim.restart <= 0 then initSim sim.seed else let s = stepSearch sim in
+simulate _ sim = if sim.restart <= 0 then sim else let s = stepSearch sim in
   { s | restart = if s.search.finished then s.restart - 1 else s.restart }
 
 stepSearch : Simulation -> Simulation
