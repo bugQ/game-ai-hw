@@ -67,10 +67,10 @@ initSim = let
   vec200 = Random.pair (Random.float -200 200) (Random.float -200 200)
   vec40 = Random.pair (Random.float -40 40) (Random.float -40 40)
  in Random.map4 (\r0 r1 r2 r3 ->
-    { quarry = {pos = r0 .* 200, v = r1 .* 40, a = (0, 0)}
-    , target = r0 .* 200 .+. r1 .* 40
-    , chaser = {pos = r2 .* 200, v = (0, 0), a = (0, 0)}
-    , evader = {pos = r3 .* 200, v = (0, 0), a = (0, 0)}
+    { quarry = {pos = r0, v = r1, a = (0, 0)}
+    , target = r0 .+. r1
+    , chaser = {pos = r2, v = (0, 0), a = (0, 0)}
+    , evader = {pos = r3, v = (0, 0), a = (0, 0)}
     , reset = Time.second * 10
     }
   ) vec200 vec40 vec200 vec200
