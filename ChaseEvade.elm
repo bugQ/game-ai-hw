@@ -20,6 +20,14 @@ type alias Simulation = {
   reset : Float
 }
 
+sim0 : Simulation
+sim0 =
+  { quarry = actor0
+  , target = (0, 0)
+  , chaser = actor0
+  , evader = actor0
+  , reset = 0
+  }
 
 --- Constants ---
 

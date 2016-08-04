@@ -13,11 +13,17 @@ type alias Actor etc = { etc |
   a : Vec2
 }
 
+actor0 : Actor {}
+actor0 = { pos = (0, 0), v = (0, 0), a = (0, 0) }
+
 -- just a circle. origin and radius.
 type alias Circle = {
   o : Vec2,
   r : Float
  }
+
+circle0 : Circle
+circle0 = { o = (0, 0), r = 0 }
 
 -- Oriented Bounding Rectangle, a rectangle in 2D
 type alias OBR etc = { etc |
@@ -25,6 +31,9 @@ type alias OBR etc = { etc |
   dir : Vec2,  -- local x axis; local y is perp to this
   size : Vec2  -- width and height
 }
+
+obr0 : OBR {}
+obr0 = { o = (0, 0), dir = (0, 0), size = (0, 0) }
 
 
 --- Kinematics ---
