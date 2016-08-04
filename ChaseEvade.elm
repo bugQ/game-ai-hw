@@ -12,6 +12,8 @@ import ClassicalEngine exposing (..)
 
 --- Structures ---
 
+type Action = Init Simulation | Tick Time
+
 type alias Simulation = {
   quarry : Actor {},
   target : Vec2,
@@ -75,16 +77,19 @@ initSim = let
     }
   ) vec200 vec40 vec200 vec200
 
-simulate : Time -> Simulation -> Simulation
-simulate t sim = let dt = (inSeconds t) in
-  { sim
-  | quarry = sim.quarry |> stepActor maxV dt
-  , target = sim.quarry.pos .+. sim.quarry.v .*
-     (dist sim.target sim.chaser.pos / maxV)
-  , chaser = sim.chaser |> chase maxV maxA sim.target |> stepActor maxV dt
-  , evader = sim.evader |> evade maxV maxA sim.target |> stepActor maxV dt
-  , reset = sim.reset - (inSeconds t)
-  }
+simulate : Time -> Simulation -> (Simulation, Cmd Action)
+simulate t sim = let
+  dt = (inSeconds t)
+  sim = { sim
+    | quarry = sim.quarry |> stepActor maxV dt
+    , target = sim.quarry.pos .+. sim.quarry.v .*
+       (dist sim.target sim.chaser.pos / maxV)
+    , chaser = sim.chaser |> chase maxV maxA sim.target |> stepActor maxV dt
+    , evader = sim.evader |> evade maxV maxA sim.target |> stepActor maxV dt
+    , reset = sim.reset - t
+    }
+ in
+  (sim, if sim.reset > 0 then Cmd.none else generate Init initSim)
 
 
 --- Drawing ---
