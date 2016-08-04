@@ -1,9 +1,9 @@
-module CircleAvoid where
+module CircleAvoid exposing (..)
 
 import List exposing (map, foldl, filterMap, minimum)
 import Color exposing (..)
-import Graphics.Collage exposing (..)
-import Graphics.Element exposing (Element)
+import Collage exposing (..)
+import Element exposing (Element)
 import Time exposing (Time, inSeconds)
 
 import Vec2 exposing (..)
@@ -13,8 +13,8 @@ import ClassicalEngine exposing (..)
 --- Structures ---
 
 type alias Driver = {
-  vehicle : Actor,
-  vision : OBR  -- a box represents their line of sight
+  vehicle : Actor {},
+  vision : OBR {}  -- a box represents their line of sight
 }
 
 type alias Simulation = {
@@ -41,16 +41,19 @@ terrain = [
   {o = (123, 130), r = 13}
  ]
 
+maxA : Float
 maxA = 80
+maxV : Float
 maxV = 120
 
+maxBrakeTime : Float
 maxBrakeTime = maxV / (2 * maxA)
 
 
 -- Behavior --
 
 -- generates line of sight based on current speed
-futureProj : Actor -> OBR
+futureProj : Actor etc -> OBR {}
 futureProj actor = let
   r = maxBrakeTime *. actor.v
   d = norm r
@@ -75,13 +78,13 @@ avoid p driver = let
   braking = urgency * -urgency *. dir
   newA = 2 * maxA *. (steering .+. braking) |> clamp2 0 maxA
   oldActor = driver.vehicle -- needed to get around parser limitation
-  newActor = { oldActor | a <- newA } -- can't just put driver.actor here :\
+  newActor = { oldActor | a = newA } -- can't just put driver.actor here :\
  in
-  { driver | vehicle <- newActor }
+  { driver | vehicle = newActor }
 
 accel : Driver -> Driver
 accel driver = let oldActor = driver.vehicle in
-  { driver | vehicle <- { oldActor | a <- normalize oldActor.v .* maxA } }
+  { driver | vehicle = { oldActor | a = normalize oldActor.v .* maxA } }
 
 
 -- Simulation --
@@ -94,10 +97,10 @@ simulate t sim = let
     Nothing -> sim.driver |> accel
   movedActor = stepActor maxV dt evasiveDriver.vehicle
   newActor = { movedActor |
-    pos <- wrap2 (-200, -200) (200, 200) movedActor.pos }
+    pos = wrap2 (-200, -200) (200, 200) movedActor.pos }
   newOBR = futureProj newActor
- in { sim | driver <-
-   { evasiveDriver | vehicle <- newActor, vision <- newOBR } }
+ in { sim | driver =
+   { evasiveDriver | vehicle = newActor, vision = newOBR } }
 
 initSim : Simulation
 initSim = let initActor = { pos = (0, 10), v = (maxV, 0), a = (0, 0) } in
