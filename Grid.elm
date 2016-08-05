@@ -18,6 +18,9 @@ type alias Grid =
  , spacing : Float
  }
 
+grid0 : Grid
+grid0 = { array = Array.empty, width = 0, spacing = 0 }
+
 toVec2 : Point -> Vec2
 toVec2 (x, y) = (toFloat x, toFloat y)
 

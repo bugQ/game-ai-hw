@@ -8,7 +8,7 @@ import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilter)
 import Vec2 exposing (Vec2, dist)
-import Grid exposing (Grid, Point, GridNode, Path, toVec2, inGrid,
+import Grid exposing (Grid, grid0, Point, GridNode, Path, toVec2, inGrid,
   neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
 import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
@@ -39,6 +39,15 @@ type alias Simulation =
  , search : AStarState
  , restart : Int
  }
+
+sim0 : Simulation
+sim0 =
+  { grid = grid0
+  , start = (0, 0)
+  , goal = (0, 0)
+  , search = state0
+  , restart = 0
+  }
 
 type alias AStarState =
  { frontier : Heap (Float, Int)
