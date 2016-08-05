@@ -1,23 +1,19 @@
-import Time exposing (Time, fps)
-import Signal exposing (message
-import Random exposing (initialSeed)
-import Flocking exposing (Simulation, simulate, initSim, drawSim, defaults)
+import Time exposing (Time)
+import Random exposing (generate)
+import Flocking exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (value, type', checked)
-import Html.Events exposing (on, onClick, targetValue, targetChecked)
-import Effects exposing (Effects)
-import StartApp exposing (..)
+import Html.Events exposing (onInput, onCheck, onClick)
+import Html.App exposing (program)
+import Element exposing (toHtml)
 import String
 import Char
-
-(<~) = Signal.map
-(~) = Signal.map2 (<|)
-infixl 4 <~
-infixl 4 ~
+import AnimationFrame
 
 
 type Action =
-  Tick Time
+  Init Simulation
+  | Tick Time
   | Neighbor Float
   | Separate Float
   | Align Float
@@ -27,67 +23,74 @@ type Action =
   | Reset
   | Nop
 
-flockInput address default actionType = input [
+init : Simulation -> Cmd Action
+init sim = generate Init (initSim sim.params)
+
+flockInput : Float -> (Float -> Action) -> Html Action
+flockInput default actionType = input [
   value (toString default),
-  on "input" targetValue
-    (\a -> Signal.message address (case (String.toFloat a) of
+  onInput
+    (\a -> case (String.toFloat a) of
       Ok c -> actionType c
-      Err s -> Nop))
+      Err s -> Nop)
  ] []
 
-flockToggle address default actionType = input [
+flockToggle : Bool -> (Bool -> Action) -> Html Action
+flockToggle default actionType = input [
   type' "checkbox",
   checked default,
-  on "change" targetChecked
-    (\a -> Signal.message address (actionType a))
+  onCheck actionType
  ] []
 
+code : Int -> String
 code = Char.fromCode >> String.fromChar
+oneThird : String
 oneThird = code 0x2153
+twoThirds : String
 twoThirds = code 0x2154
 
-view address sim = div [] [
-  drawSim sim |> fromElement,
+view : Simulation -> Html Action
+view sim = div [] [
+  drawSim sim |> toHtml,
   hr [] [],
   p [] [
-    button [ onClick address Default ] [ text "Default" ],
-    button [ onClick address Reset ] [ text "Reset" ]
+    button [ onClick Default ] [ text "Default" ],
+    button [ onClick Reset ] [ text "Reset" ]
    ],
   p [] [
     text "draw velocity vectors",
-    flockToggle address sim.params.drawVectors DrawVectors
+    flockToggle sim.params.drawVectors DrawVectors
    ],
   dl [] [
     dt [] [text "neighborhood radius"],
-     dd [] [flockInput address sim.params.neighborhoodRadius Neighbor],
+     dd [] [flockInput sim.params.neighborhoodRadius Neighbor],
     dt [] [text <| "separation (uses " ++ oneThird ++ " radius)"],
-     dd [] [flockInput address sim.params.separation Separate],
+     dd [] [flockInput sim.params.separation Separate],
     dt [] [text <| "alignment (uses full radius)"],
-     dd [] [flockInput address sim.params.alignment Align],
+     dd [] [flockInput sim.params.alignment Align],
     dt [] [text <| "coherence (uses " ++ twoThirds ++ " radius)"],
-     dd [] [flockInput address sim.params.coherence Cohere]
+     dd [] [flockInput sim.params.coherence Cohere]
    ]
  ]
 
-init : Simulation
-init = initSim (initialSeed 1337)
-
+update : Action -> Simulation -> (Simulation, Cmd Action)
 update action sim = let params = sim.params in
- (flip (,)) Effects.none <| case action of
-  Tick dt -> simulate dt sim
-  Reset -> { init | params <- sim.params }
-  Default -> { sim | params <- defaults }
-  Neighbor r -> { sim | params <- { params | neighborhoodRadius <- r } }
-  Separate c -> { sim | params <- { params | separation <- c } }
-  Align c -> { sim | params <- { params | alignment <- c } }
-  Cohere c -> { sim | params <- { params | coherence <- c } }
-  DrawVectors b -> { sim | params <- { params | drawVectors <- b } }
+ case action of
+  Init sim -> (sim, Cmd.none)
+  Tick dt -> (simulate dt sim, Cmd.none)
+  Reset -> (sim, init sim)
+  Default -> ({ sim | params = defaults }, Cmd.none)
+  Neighbor r -> ({ sim | params = { params | neighborhoodRadius = r } }, Cmd.none)
+  Separate c -> ({ sim | params = { params | separation = c } }, Cmd.none)
+  Align c -> ({ sim | params = { params | alignment = c } }, Cmd.none)
+  Cohere c -> ({ sim | params = { params | coherence = c } }, Cmd.none)
+  DrawVectors b -> ({ sim | params = { params | drawVectors = b } }, Cmd.none)
+  Nop -> (sim, Cmd.none)
 
-app = start {
-  init = ( init, Effects.none ),
+main : Program Never
+main = program {
+  init = ( sim0, init sim0 ),
   update = update,
   view = view,
-  inputs = [ Tick <~ (fps 60) ]
+  subscriptions = always (AnimationFrame.diffs Tick)
  }
-
-main = app.html
