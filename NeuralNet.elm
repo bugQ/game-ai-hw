@@ -6,7 +6,7 @@ import Matrix exposing (Matrix)
 import Matrix.Random as Random
 import Matrix.Extra as Matrix exposing (transpose, dotVector, dotColumn)
 import Random exposing (Generator)
-import Random.Float' exposing (standardNormal)
+import Random.Floatx exposing (standardNormal)
 
 -- forward-fed neural network represented by sequence of matrices
 type alias NeuralNet = List (Matrix Float)

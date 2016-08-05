@@ -1,4 +1,4 @@
-module Random.Float' exposing (..)
+module Random.Floatx exposing (..)
 
 import Random exposing (Generator)
 
