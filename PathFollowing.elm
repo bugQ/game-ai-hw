@@ -116,25 +116,23 @@ simulate t sim = let
       new_e = explore (e |> stepActor (maxV node) dt) sim.grid
      in (new_e :: list, case new_e.state of
         Resting -> Random.generate Plot (Grid.samplePoint sim.grid)
---          let (goal, seed1) = generate (Grid.samplePoint sim.grid) seed0 in
---          ({ new_e
---           | state = Plotting goal
---           , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
---           } :: list, seed1)
         _ -> cmd
       )
     ) ([], Cmd.none) sim.explorers
  in ({ sim | explorers = new_explorers }, cmd)
 
 startPlot : Point -> Simulation -> Simulation
-startPlot goal sim = { sim | explorers = List.map (\e -> case e.state of
-      Resting ->
-        { e
-        | state = Plotting goal
-        , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
-        }
-      _ -> e
-  ) sim.explorers }
+startPlot goal sim = { sim | explorers =
+  fst <| List.foldr (\e (es, done) ->
+    if not done && e.state == Resting
+      then (
+          { e
+          | state = Plotting goal
+          , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
+          } :: es
+        , True )
+      else (e :: es, done)
+  ) ([], False) sim.explorers }
 
 update : Action -> Simulation -> (Simulation, Cmd Action)
 update action sim = case action of
