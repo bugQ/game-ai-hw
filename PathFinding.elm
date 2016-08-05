@@ -145,8 +145,8 @@ initSim = let
     }
   ) genGrid genIndex genIndex
 
-simulate : Time -> Simulation -> Simulation
-simulate _ sim = if sim.restart <= 0 then sim else let s = stepSearch sim in
+simulate : Simulation -> Simulation
+simulate sim = if sim.restart <= 0 then sim else let s = stepSearch sim in
   { s | restart = if s.search.finished then s.restart - 1 else s.restart }
 
 stepSearch : Simulation -> Simulation
