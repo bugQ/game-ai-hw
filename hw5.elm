@@ -1,10 +1,11 @@
-import Random exposing (initialSeed)
-import Graphics.Collage exposing (collage)
-import PathFollowing exposing (Simulation, simulate, initSim, drawSim)
-import Signal exposing (foldp, (<~))
-import Time exposing (fps)
-import Html
+import PathFollowing exposing (..)
+import Html.App exposing (program)
+import AnimationFrame
 
-sim = initSim (initialSeed 1337)
-
-main = collage 600 600 << drawSim <~ foldp simulate sim (fps 20)
+main : Program Never
+main = program
+  { init = ( sim0, Cmd.none )
+  , view = drawSim
+  , update = update
+  , subscriptions = always (AnimationFrame.diffs Tick)
+  }

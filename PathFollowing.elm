@@ -12,8 +12,10 @@ import Random exposing (Seed, Generator, generate)
 import Random.Array exposing (shuffle)
 import Time exposing (Time, inSeconds)
 import Color exposing (Color, yellow, green, red, grey)
-import Collage exposing (Form, circle, solid, filled, move)
+import Collage exposing (Form, circle, solid, filled, move, collage)
 import Array exposing (slice)
+import Html exposing (Html)
+import Element exposing (toHtml)
 
 
 --- CONSTANTS ---
@@ -53,6 +55,8 @@ type alias Simulation =
  , explorers : List (Explorer {})
  }
 
+sim0 : Simulation
+sim0 = { grid = Grid.grid0, explorers = [] }
 
 --- BEHAVIOR ---
 
@@ -122,6 +126,21 @@ simulate t sim = let
     ) ([], Cmd.none) sim.explorers
  in ({ sim | explorers = new_explorers }, cmd)
 
+startPlot : Point -> Simulation -> Simulation
+startPlot goal sim = { sim | explorers = List.map (\e -> case e.state of
+      Resting ->
+        { e
+        | state = Plotting goal
+        , search = initSearch (screenPointToGrid e.pos sim.grid) sim.grid
+        }
+      _ -> e
+  ) sim.explorers }
+
+update : Action -> Simulation -> (Simulation, Cmd Action)
+update action sim = case action of
+  Init sim -> (sim, Cmd.none)
+  Tick t -> simulate t sim
+  Plot p -> (startPlot p sim, Cmd.none)
 
 --- DRAWING ---
 
@@ -132,8 +151,8 @@ stateColor state = case state of
   Arriving _ -> red
   Resting -> grey
 
-drawSim : Simulation -> List Form
-drawSim sim = drawGrid sim.grid
+drawSim : Simulation -> Html Action
+drawSim sim = toHtml <| collage 600 600 <| drawGrid sim.grid
   ++ List.foldl (++) []
     (List.indexedMap (\i e -> e |> drawVehicle (stateColor e.state)) sim.explorers)
   ++ case List.head sim.explorers of
