@@ -244,7 +244,7 @@ keyColor c = case c of
   B -> blue
 
 drawProp : Prop -> Vec2 -> Form
-drawProp prop xy = move xy <| text <| case prop of
+drawProp prop p = move p <| text <| Text.bold <| Text.height 14 <| case prop of
   Key c -> Text.fromString "K" |> Text.color (keyColor c)
   Door c open -> Text.fromString (if open then "O" else "D")
     |> Text.color (keyColor c)

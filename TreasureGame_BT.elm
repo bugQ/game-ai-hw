@@ -1,21 +1,23 @@
-module TreasureGame_BT where
+module TreasureGame_BT exposing (..)
 
 import Grid exposing (screenPointToGrid)
 import PathFinding exposing (initSearch)
 import BehaviourTree exposing (..)
-import TreasureGame exposing (Explorer, Dungeon, Prop(Chest),
+import TreasureGame exposing (Explorer, Dungeon, dungeon0, Prop(Chest),
   isKey, isLockedDoor, initDungeon, runDungeon, drawDungeon)
 import PathFollowing exposing (Exploration(Plotting, Arriving, Resting), explore)
-import Graphics.Collage exposing (Form, text, move)
+import Collage exposing (Form, text, move)
 import Text
 import Time exposing (Time, inSeconds)
-import Random exposing (Seed)
+import Random exposing (Generator)
 import Color exposing (purple)
 
 --- STRUCTURES ---
 
 type alias Simulation = (Dungeon, Behaviour Dungeon)
 
+sim0 : Simulation
+sim0 = (dungeon0, BehaviourTree.empty)
 
 --- BEHAVIOR ---
 
@@ -71,18 +73,16 @@ initTree = Sequence
  , Leaf seekTreasure
  ]
 
-
 --- SIMULATION ---
 
-initSim : Seed -> Simulation
-initSim seed = (initDungeon seed, initTree)
+initSim : Generator Simulation
+initSim = Random.map (\dungeon -> (dungeon, initTree)) initDungeon
 
 simulate : Time -> Simulation -> Simulation
 simulate t (dungeon, tree) = let
   (new_dungeon, _, new_tree) = BehaviourTree.step tree (runDungeon t dungeon)
  in
   (new_dungeon, new_tree)
-
 
 --- DRAWING ---
 

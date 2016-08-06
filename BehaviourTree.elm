@@ -10,6 +10,9 @@ type Behaviour a
   | Sequence (List (Behaviour a))
   | Select (List (Behaviour a))
 
+empty : Behaviour a
+empty = Sequence []
+
 repeat : Behaviour a -> Behaviour a
 repeat b = Repeat b b
 

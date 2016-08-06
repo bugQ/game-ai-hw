@@ -3,7 +3,7 @@ module Grid exposing (..)
 import Collage exposing (..)
 import Array exposing (Array)
 import ArrayToList
-import Color exposing (lightCharcoal, lightBrown, blue, darkCharcoal)
+import Color exposing (lightCharcoal, lightBrown, lightBlue, darkCharcoal)
 import Vec2 exposing (..)
 import Random exposing (Generator, Seed)
 import Random.Array
@@ -102,7 +102,7 @@ drawGrid grid = ArrayToList.indexedMap (
     \i node -> filled (case node of
       Road -> lightCharcoal
       Sand -> lightBrown
-      Water -> blue
+      Water -> lightBlue
       Obstacle -> darkCharcoal) (square (grid.spacing * 0.8)) |>
     move (gridIndexToScreen i grid)
   ) grid.array
