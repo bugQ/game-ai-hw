@@ -60,8 +60,8 @@ sim0 = { grid = Grid.grid0, explorers = [] }
 
 --- BEHAVIOR ---
 
-explore : Explorer etc -> Grid -> Explorer etc
-explore e grid = let
+explore : Grid -> Explorer etc -> Explorer etc
+explore grid e = let
   p = screenPointToGrid e.pos grid
   node = Grid.get p grid
  in case e.state of
@@ -77,10 +77,15 @@ explore e grid = let
    then { e | state = Seeking rest }
    else { e | state = Seeking (next :: rest) }
      |> chase (maxV node) maxA (gridPointToScreen next grid)
-  Arriving goal -> if norm e.v < 0.01
+  Arriving goal -> if p == goal
    then { e | state = Resting }
    else e |> arrive (maxV node) maxA (gridPointToScreen goal grid)
   _ -> e
+
+fastExplore : Grid -> Explorer etc -> Explorer etc
+fastExplore grid e = let new_e = explore grid e in case e.state of
+  Plotting goal -> fastExplore grid new_e
+  _ -> new_e
 
 
 --- SIMULATION ---
@@ -113,7 +118,7 @@ simulate t sim = let
   dt = inSeconds t
   (new_explorers, cmd) = List.foldr (\e (list, cmd) -> let
       node = Grid.get (screenPointToGrid e.pos sim.grid) sim.grid
-      new_e = explore (e |> stepActor (maxV node) dt) sim.grid
+      new_e = e |> stepActor (maxV node) dt |> explore sim.grid
      in (new_e :: list, case new_e.state of
         Resting -> Random.generate Plot (Grid.samplePoint sim.grid)
         _ -> cmd

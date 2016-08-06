@@ -1,13 +1,13 @@
 module TreasureGame exposing (..)
 
-import Vec2 exposing (Vec2)
+import Vec2 exposing (..)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
 import Grid exposing (Grid, Point, GridNode(Obstacle),
-  deindex, screenPointToGrid, gridPointToScreen, drawGrid)
+  toVec2, deindex, screenPointToGrid, gridPointToScreen, drawGrid)
 import PathFinding exposing (AStarState, state0,
   initSearch, drawRunningCosts, drawPath)
 import PathFollowing exposing (
-  Exploration(Plotting, Seeking, Arriving, Resting), maxV, explore, stateColor)
+  Exploration(Plotting, Seeking, Arriving, Resting), maxV, fastExplore, stateColor)
 import StateMachine exposing (State, Condition, Action, StateMachine,
   addRule, apprise)
 import ArrayToList
@@ -55,6 +55,7 @@ type alias Dungeon =
  { floor : Grid
  , loot : List (Prop, Point)
  , explorer : Explorer
+ , monster : Explorer
  }
 
 type alias Simulation = StateMachine Dungeon
@@ -74,6 +75,7 @@ dungeon0 =
   { floor = Grid.repeat gridW gridH spacing Obstacle
   , loot = []
   , explorer = explorer0
+  , monster = explorer0
   }
 
 sim0 : Simulation
@@ -178,20 +180,18 @@ initDungeon = let
   Random.map2 (\grid randIndices -> let
     openIndices = Array.filter
       (\i -> Array.get i grid.array /= Just Obstacle) randIndices
-    props = Array.slice 1 (List.length initProps + 1) openIndices
+    props = Array.slice 2 (List.length initProps + 2) openIndices
       |> ArrayToList.map ((flip deindex) grid) |> List.map2 (,) initProps
-    start = deindex (Array.get 0 openIndices |> Maybe.withDefault 0) grid
+    startE = deindex (Array.get 0 openIndices |> Maybe.withDefault 0) grid
+    startM = deindex (Array.get 1 openIndices |> Maybe.withDefault 0) grid
    in
     { floor = grid
     , loot = props
-    , explorer =
-      { pos = gridPointToScreen start grid
-      , v = (0.0, 0.0)
-      , a = (0.0, 0.0)
-      , search = initSearch start grid
-      , state = Resting
-      , inv = []
+    , explorer = { explorer0
+      | pos = gridPointToScreen startE grid
+      , search = initSearch startE grid
       }
+    , monster = { explorer0 | pos = spacing *. toVec2 (gridW, gridH) }
     }
   ) genGrid genIndices
 
@@ -207,29 +207,30 @@ runDungeon : Time -> Dungeon -> Dungeon
 runDungeon t dungeon = let
   dt = inSeconds t
   grid = dungeon.floor
-  e = dungeon.explorer
-  e_p = (screenPointToGrid e.pos grid)
+  e_p = (screenPointToGrid dungeon.explorer.pos grid)
   node = Grid.get e_p grid
-  new_e = explore (e |> stepActor (maxV node) dt) grid
+  new_e = dungeon.explorer |> stepActor (maxV node) dt |> fastExplore grid
+  new_m = dungeon.monster |> stepActor (maxV node) dt |> fastExplore grid
+  new_dungeon = { dungeon | explorer = new_e, monster = new_m }
+  loot = dungeon.loot
  in
-  case List.filter (\(_, p) -> p == e_p) dungeon.loot of
+  case List.filter (\(_, p) -> p == e_p) loot of
     (prop, p) :: _ -> case prop of
-      Key c -> { dungeon
+      Key c -> { new_dungeon
         | explorer = { new_e | inv = prop :: new_e.inv }
-        , loot = List.filter ((/=) (prop, p)) dungeon.loot
+        , loot = List.filter ((/=) (prop, p)) loot
        }
       Door c False -> if List.any ((==) (Key c)) new_e.inv
-        then { dungeon
-          | explorer = new_e
-          , loot = (Door c True, p)
-            :: List.filter ((/=) (prop, p)) dungeon.loot
-         }
-        else { dungeon | explorer = new_e }
-      Chest -> if not <| List.any (fst >> isLockedDoor) dungeon.loot
-        then { dungeon | loot = List.filter (fst >> (/=) Chest) dungeon.loot }
-        else { dungeon | explorer = new_e }
-      _ -> { dungeon | explorer = new_e }
-    [] -> { dungeon | explorer = new_e }
+        then { new_dungeon
+          | loot = (Door c True, p)
+            :: List.filter ((/=) (prop, p)) loot
+          }
+        else new_dungeon
+      Chest -> if not <| List.any (fst >> isLockedDoor) loot
+        then { new_dungeon | loot = List.filter (fst >> (/=) Chest) loot }
+        else new_dungeon
+      _ -> new_dungeon
+    [] -> new_dungeon
 
 simulate : Time -> Simulation -> Simulation
 simulate t sim = StateMachine.update (runDungeon t sim.info) sim

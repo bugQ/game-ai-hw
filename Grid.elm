@@ -76,14 +76,14 @@ neighbors (x, y) grid = let sqrt2 = sqrt 2 in
      else case get p grid of
       Obstacle -> Nothing
       node -> Just (p, c * cost node))
-    [ ((x-1, y-1), sqrt2)
-    , ((x, y-1), 1)
-    , ((x+1, y-1), sqrt2)
+    [ ((x, y-1), 1)
+--  , ((x+1, y-1), sqrt2)
     , ((x+1, y), 1)
-    , ((x+1, y+1), sqrt2)
+--  , ((x+1, y+1), sqrt2)
     , ((x, y+1), 1)
-    , ((x-1, y+1), sqrt2)
+--  , ((x-1, y+1), sqrt2)
     , ((x-1, y), 1)
+--  , ((x-1, y-1), sqrt2)
     ]
 
 gridPointToScreen : Point -> Grid -> Vec2
