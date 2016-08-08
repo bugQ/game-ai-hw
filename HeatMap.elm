@@ -43,7 +43,7 @@ heatNav grid heat source = let
 
 heatProxInit : Grid -> Float -> Point -> Int -> Float
 heatProxInit grid heat source i =
-  heat * 0.7 ^ toFloat (manhattan source (Grid.deindex i grid))
+  heat * 0.65 ^ toFloat (manhattan source (Grid.deindex i grid))
 
 heatProx : Grid -> Float -> Point -> Array Float
 heatProx grid heat source = Array.initialize (Grid.size grid)

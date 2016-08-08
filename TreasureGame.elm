@@ -191,10 +191,12 @@ runDungeon : Time -> Dungeon -> Dungeon
 runDungeon t dungeon = let
   dt = inSeconds t
   grid = dungeon.floor
-  e_p = (screen2grid dungeon.explorer.pos grid)
-  node = Grid.get e_p grid
-  new_e = dungeon.explorer |> stepActor (maxV node) dt |> explore grid
-  new_m = dungeon.monster |> stepActor (maxV node) dt |> explore grid
+  e_p = screen2grid dungeon.explorer.pos grid
+  e_maxV = maxV (Grid.get e_p grid)
+  m_p = screen2grid dungeon.monster.pos grid
+  m_maxV = maxV (Grid.get m_p grid)
+  new_e = dungeon.explorer |> stepActor e_maxV dt |> explore grid
+  new_m = dungeon.monster |> stepActor m_maxV dt |> explore grid
   new_dungeon = { dungeon | explorer = new_e, monster = new_m }
   loot = dungeon.loot
  in
