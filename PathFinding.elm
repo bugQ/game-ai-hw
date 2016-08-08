@@ -7,12 +7,10 @@ import Collage exposing (Form,
 import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilter)
-import Vec2 exposing (Vec2, dist)
-import Grid exposing (Grid, grid0, Point, GridNode, Path, toVec2, inGrid,
-  neighbors, gridPointToScreen, gridIndexToScreen, drawGrid)
+import Grid exposing (Grid, grid0, Point, GridNode, Path, inGrid,
+  manhattan, neighbors4, grid2screen, gridIndexToScreen, drawGrid)
 import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
-import Time exposing (Time)
 import String exposing (left)
 
 
@@ -64,6 +62,7 @@ state0 =
   , finished = True
   }
 
+type alias Heuristic = Point -> Point -> Float -> Float
 
 --- BEHAVIOR ---
 
@@ -74,12 +73,6 @@ initSearch p0 grid = let i0 = Grid.index p0 grid in
  , running_cost = Array.repeat (Grid.size grid) inf |> Array.set i0 0
  , finished = False
  }
-
-findPath : Point -> Point -> Grid -> List Point
-findPath p0 p1 grid = aStar p1 grid (initSearch p0 grid)
-
-heuristic : Point -> Point -> Float
-heuristic p1 p2 = dist (toVec2 p1) (toVec2 p2)
 
 aStarStep : Point -> Grid -> AStarState -> AStarState
 aStarStep goal grid state = if state.finished then state else let
@@ -92,29 +85,72 @@ aStarStep goal grid state = if state.finished then state else let
     else List.foldl (\(next, next_cost) s ->
      let
       j = Grid.index next grid
+      neighbor_cost = Array.get j s.running_cost |> withDefault -1
       new_cost = current_cost + next_cost
+      heuristic = toFloat (manhattan next goal)
      in
-      if not s.finished && new_cost < (Array.get j s.running_cost |> withDefault -1) then
+      if not s.finished && (new_cost < neighbor_cost) then
         { s
-        | frontier = Heap.insert (new_cost + heuristic next goal, j) s.frontier
+        | frontier = Heap.insert (new_cost + heuristic, j) s.frontier
         , breadcrumbs = Array.set j i s.breadcrumbs
         , running_cost = Array.set j new_cost s.running_cost
         , finished = next == goal
         }
       else s)
     poppedState
-    (neighbors (Grid.deindex i grid) grid)
+    (neighbors4 (Grid.deindex i grid) grid)
 
-aStar : Point -> Grid -> AStarState -> List Point
-aStar goal grid state = case state.frontier of
-  Heap.Leaf -> traceCrumbs goal state.breadcrumbs grid
-  Heap.Node _ _ -> aStar goal grid (aStarStep goal grid state)
-
-traceCrumbs : Point -> Array Int -> Grid -> List Point
-traceCrumbs p crumbs grid = let
-  prev = Array.get (Grid.index p grid) crumbs |> withDefault -1
+aStar : Grid -> Point -> Point -> List Point
+aStar grid start goal = let
+  init = initSearch start grid
+  step = aStarStep goal grid
+  return = traceCrumbs goal grid << .breadcrumbs
+  loop s = if s.finished then return s else loop (step s)
  in
-  if prev < 0 then [p] else p :: traceCrumbs (Grid.deindex prev grid) crumbs grid
+  loop init
+
+traceCrumbs : Point -> Grid -> Array Int -> List Point
+traceCrumbs p grid crumbs = Array.foldl (\_ (trail, p) -> let
+    prev = Array.get (Grid.index p grid) crumbs |> withDefault -1
+   in
+    if prev < 0 then (trail, p) else (p :: trail, Grid.deindex prev grid)
+  ) ([], p) crumbs |> fst |> List.reverse
+
+type alias PropagateState = { frontier : Heap (Float, Int), heat : Array Float }
+
+initHeat : Float -> Point -> Grid -> PropagateState
+initHeat heat p0 grid = let i0 = Grid.index p0 grid in
+  { frontier = Heap.insert (heat, i0) Heap.Leaf
+  , heat = Array.repeat (Grid.size grid) (0) |> Array.set i0 heat
+  }
+
+propagate : Grid -> PropagateState -> PropagateState
+propagate grid state = case findmin state.frontier of
+  Nothing -> state
+  Just (current_heat, i) ->
+    List.foldl (\(next, _) s -> let
+      j = Grid.index next grid
+      neighbor_heat = Array.get j s.heat |> withDefault (0)
+      neighbor_cost = Grid.cost (Grid.get (Grid.deindex j grid) grid)
+      new_heat = current_heat * 0.9 ^ neighbor_cost
+     in
+      if neighbor_heat < new_heat then
+        { s
+        | frontier = Heap.insert (new_heat, j) s.frontier
+        , heat = Array.set j new_heat s.heat
+        }
+      else s
+    ) { state | frontier = Heap.deletemin state.frontier }
+    (neighbors4 (Grid.deindex i grid) grid)
+
+heatMap : Grid -> Float -> Point -> Array Float
+heatMap grid heat source = let
+  init = initHeat heat source grid
+  step = propagate grid
+  return = .heat
+  loop s = if s.frontier == Heap.Leaf then return s else loop (step s)
+ in
+  loop init
 
 
 --- SIMULATION ---
@@ -152,11 +188,6 @@ simulate sim = if sim.restart <= 0 then sim else let s = stepSearch sim in
 stepSearch : Simulation -> Simulation
 stepSearch sim = { sim | search = aStarStep sim.goal sim.grid sim.search }
 
-runSearch : Simulation -> Simulation
-runSearch sim = case sim.search.frontier of
-  Heap.Leaf -> sim
-  Heap.Node _ _ -> stepSearch sim
-
 
 --- DRAWING ---
 
@@ -174,18 +205,18 @@ drawRunningCosts costs grid = List.filterMap (\i -> case Array.get i costs of
     Nothing -> Nothing) [0..(Array.length grid.array)]
 
 drawPath : Path -> Grid -> Form
-drawPath pp grid = List.map ((flip gridPointToScreen) grid) pp
+drawPath pp grid = List.map ((flip grid2screen) grid) pp
   |> path |> traced (dashed red)
 
 drawBreadcrumbPath : Point -> Array Int -> Grid -> Form
-drawBreadcrumbPath goal crumbs grid = drawPath (traceCrumbs goal crumbs grid) grid
+drawBreadcrumbPath goal crumbs grid = drawPath (traceCrumbs goal grid crumbs) grid
 
 drawSim : Simulation -> List Form
 drawSim sim = drawGrid sim.grid
   ++ drawFrontier sim.search.frontier sim.grid
   ++
-   [ circle 19 |> filled red |> move (gridPointToScreen sim.goal sim.grid)
-   , circle 17 |> filled green |> move (gridPointToScreen sim.start sim.grid)
+   [ circle 19 |> filled red |> move (grid2screen sim.goal sim.grid)
+   , circle 17 |> filled green |> move (grid2screen sim.start sim.grid)
    , drawBreadcrumbPath sim.goal sim.search.breadcrumbs sim.grid
    ]
   ++ drawRunningCosts sim.search.running_cost sim.grid

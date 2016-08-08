@@ -1,16 +1,17 @@
 module TreasureGame_BT exposing (..)
 
-import Grid exposing (screenPointToGrid)
+import Grid exposing (screen2grid)
 import PathFinding exposing (initSearch)
 import BehaviourTree exposing (..)
 import TreasureGame exposing (Explorer, Dungeon, dungeon0, Prop(Chest),
   isKey, isLockedDoor, initDungeon, runDungeon, drawDungeon)
-import PathFollowing exposing (Exploration(Plotting, Arriving, Resting), explore)
+import PathFollowing exposing (Exploration(..), explore)
 import Collage exposing (Form, text, move)
 import Text
 import Time exposing (Time, inSeconds)
 import Random exposing (Generator)
 import Color exposing (purple)
+import List.Extra as List
 
 --- STRUCTURES ---
 
@@ -25,37 +26,51 @@ seekKey : Routine Dungeon
 seekKey dungeon = let
   e = dungeon.explorer
   grid = dungeon.floor
-  start = screenPointToGrid e.pos dungeon.floor
+  start = screen2grid e.pos dungeon.floor
   keys = List.filter (fst >> isKey) dungeon.loot
+  success target = ({ dungeon | explorer =
+      { e | search = initSearch start grid, state = Plotting target } }
+   , Success)
+  failure = ({ dungeon | explorer = { e | state = Resting } }, Failure)
  in
   case keys of
+    [] -> failure
     (_, target) :: _ -> case dungeon.explorer.state of
-      Resting -> ({ dungeon | explorer =
-        { e | search = initSearch start grid, state = Plotting target } }
-       , Success)
+      Resting -> success target
+      Seeking path ->
+        (case List.dropWhile ((/=) start) path of
+          [] -> dungeon
+          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
+        , Running)
       _ -> (dungeon, Running)
-    [] -> (dungeon, Failure)
 
 seekDoor : Routine Dungeon
 seekDoor dungeon = let
   e = dungeon.explorer
   grid = dungeon.floor
-  start = screenPointToGrid e.pos dungeon.floor
+  start = screen2grid e.pos dungeon.floor
   lockedDoors = List.filter (fst >> isLockedDoor) dungeon.loot
+  success target = ({ dungeon | explorer =
+      { e | search = initSearch start grid, state = Plotting target } }
+   , Success)
+  failure = ({ dungeon | explorer = { e | state = Resting } }, Failure)
  in
   case lockedDoors of
+    [] -> failure
     (_, target) :: _ -> case dungeon.explorer.state of
-      Resting -> ({ dungeon | explorer =
-        { e | search = initSearch start grid, state = Plotting target } }
-       , Success)
+      Resting -> success target
+      Seeking path ->
+        (case List.dropWhile ((/=) start) path of
+          [] -> dungeon
+          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
+        , Running)
       _ -> (dungeon, Running)
-    [] -> (dungeon, Failure)
 
 seekTreasure : Routine Dungeon
 seekTreasure dungeon = let
   e = dungeon.explorer
   grid = dungeon.floor
-  start = screenPointToGrid e.pos dungeon.floor
+  start = screen2grid e.pos dungeon.floor
   chests = List.filter (fst >> (==) Chest) dungeon.loot
  in
   case chests of
@@ -63,6 +78,11 @@ seekTreasure dungeon = let
       Resting -> ({ dungeon | explorer =
         { e | search = initSearch start grid, state = Plotting target } }
        , Success)
+      Seeking path ->
+        (case List.dropWhile ((/=) start) path of
+          [] -> dungeon
+          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
+        , Running)
       _ -> (dungeon, Running)
     [] -> (dungeon, Success)
 

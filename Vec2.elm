@@ -97,6 +97,11 @@ clamp2 min max p = let n = norm p in
   if n > max then p .* max ./ n else
     if n < min then p .* min ./ n else p
 
+-- mean (average) of vectors
+mean2 : List Vec2 -> Vec2
+mean2 ps = List.foldl (.+.) (0, 0) ps ./ toFloat (List.length ps)
+
+
 random : Vec2 -> Vec2 -> Generator Vec2
 random (xmin, ymin) (xmax, ymax) =
   Random.map2 (,) (Random.float xmin xmax) (Random.float ymin ymax)

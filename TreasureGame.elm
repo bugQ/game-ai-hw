@@ -3,7 +3,7 @@ module TreasureGame exposing (..)
 import Vec2 exposing (..)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
 import Grid exposing (Grid, Point, GridNode(Obstacle),
-  toVec2, deindex, screenPointToGrid, gridPointToScreen, drawGrid)
+  toVec2, deindex, screen2grid, grid2screen, drawGrid)
 import PathFinding exposing (AStarState, state0,
   initSearch, drawRunningCosts, drawPath)
 import PathFollowing exposing (
@@ -107,7 +107,7 @@ rules =
    , (\dungeon -> dungeon.explorer.state == Resting)
    , (\dungeon -> let
        e = dungeon.explorer
-       start = screenPointToGrid e.pos dungeon.floor
+       start = screen2grid e.pos dungeon.floor
        keys = List.filter (fst >> isKey) dungeon.loot
        target = case keys of
          (_, p) :: _ -> p
@@ -133,7 +133,7 @@ rules =
    , (\dungeon -> dungeon.explorer.state == Resting)
    , (\dungeon -> let
        e = dungeon.explorer
-       start = screenPointToGrid e.pos dungeon.floor
+       start = screen2grid e.pos dungeon.floor
        lockedDoors = List.filter (fst >> isLockedDoor) dungeon.loot
        target = case lockedDoors of
          (_, p) :: _ -> p
@@ -156,7 +156,7 @@ rules =
    , (\dungeon -> dungeon.explorer.state == Resting)
    , (\dungeon -> let
        e = dungeon.explorer
-       start = screenPointToGrid e.pos dungeon.floor
+       start = screen2grid e.pos dungeon.floor
        chests = List.filter (fst >> (==) Chest) dungeon.loot
        target = case chests of  -- there should only be one...
          (_, p) :: _ -> p
@@ -188,10 +188,10 @@ initDungeon = let
     { floor = grid
     , loot = props
     , explorer = { explorer0
-      | pos = gridPointToScreen startE grid
+      | pos = grid2screen startE grid
       , search = initSearch startE grid
       }
-    , monster = { explorer0 | pos = spacing *. toVec2 (gridW, gridH) }
+    , monster = { explorer0 | pos = grid2screen startM grid }
     }
   ) genGrid genIndices
 
@@ -207,7 +207,7 @@ runDungeon : Time -> Dungeon -> Dungeon
 runDungeon t dungeon = let
   dt = inSeconds t
   grid = dungeon.floor
-  e_p = (screenPointToGrid dungeon.explorer.pos grid)
+  e_p = (screen2grid dungeon.explorer.pos grid)
   node = Grid.get e_p grid
   new_e = dungeon.explorer |> stepActor (maxV node) dt |> fastExplore grid
   new_m = dungeon.monster |> stepActor (maxV node) dt |> fastExplore grid
@@ -258,7 +258,7 @@ drawDungeon dungeon = let
   e = dungeon.explorer
  in drawGrid grid
   ++ List.map (\(prop, p) ->
-        drawProp prop (gridPointToScreen p grid)
+        drawProp prop (grid2screen p grid)
       ) props
   ++ drawVehicle (stateColor e.state) e
   ++ (case e.state of

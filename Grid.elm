@@ -44,6 +44,9 @@ get p grid = Array.get (index p grid) grid.array |> Maybe.withDefault Obstacle
 set : Point -> GridNode -> Grid -> Grid
 set p node grid = { grid | array = Array.set (index p grid) node grid.array }
 
+manhattan : Point -> Point -> Int
+manhattan (x1, y1) (x2, y2) = abs (x2 - x1) + abs (y2 - y1)
+
 samplePoint : Grid -> Generator Point
 samplePoint grid = let gridH = Array.length grid.array // grid.width in
   Random.pair (Random.int 0 (grid.width - 1)) (Random.int 0 (gridH - 1))
@@ -69,32 +72,79 @@ cost node = case node of
   Water -> 3
   Obstacle -> 1/0
 
--- returns points on grid adjacent to given point with movement costs
-neighbors : Point -> Grid -> List (Point, Float)
-neighbors (x, y) grid = let sqrt2 = sqrt 2 in
-  List.filterMap (\(p, c) -> if not (inGrid p grid) then Nothing
-     else case get p grid of
-      Obstacle -> Nothing
-      node -> Just (p, c * cost node))
-    [ ((x, y-1), 1)
---  , ((x+1, y-1), sqrt2)
-    , ((x+1, y), 1)
---  , ((x+1, y+1), sqrt2)
-    , ((x, y+1), 1)
---  , ((x-1, y+1), sqrt2)
-    , ((x-1, y), 1)
---  , ((x-1, y-1), sqrt2)
-    ]
+neighborFilter : Grid -> (Point, Float) -> Maybe (Point, Float)
+neighborFilter grid (p, c) =
+  if not (inGrid p grid)
+    then Nothing
+  else case get p grid of
+    Obstacle -> Nothing
+    node -> Just (p, c * cost node)
 
-gridPointToScreen : Point -> Grid -> Vec2
-gridPointToScreen p grid = let offset = toFloat (grid.width - 1) / 2 in
+sqrt2 : Float
+sqrt2 = sqrt 2
+sqrt5 : Float
+sqrt5 = sqrt 5
+
+candidates4 : Point -> List (Point, Float)
+candidates4 (x, y) =
+  [ ((x, y-1), 1)
+  , ((x+1, y), 1)
+  , ((x, y+1), 1)
+  , ((x-1, y), 1)
+  ]
+
+-- returns points on grid (ortho-)adjacent to given point with movement costs
+neighbors4 : Point -> Grid -> List (Point, Float)
+neighbors4 p grid = List.filterMap (neighborFilter grid) (candidates4 p)
+
+candidates8 : Point -> List (Point, Float)
+candidates8 (x, y) = candidates4 (x, y) ++
+  [ ((x+1, y-1), sqrt2)
+  , ((x+1, y+1), sqrt2)
+  , ((x-1, y+1), sqrt2)
+  , ((x-1, y-1), sqrt2)
+  ]
+
+-- returns points on grid adjacent (+ diag) to given point with movement costs
+neighbors8 : Point -> Grid -> List (Point, Float)
+neighbors8 p grid = List.filterMap (neighborFilter grid) (candidates8 p)
+
+candidates12 : Point -> List (Point, Float)
+candidates12 (x, y) = candidates8 (x, y) ++
+  [ ((x, y-2), 2)
+  , ((x+2, y), 2)
+  , ((x, y+2), 2)
+  , ((x-2, y), 2)
+  ]
+
+-- returns points on grid adjacent (+ diag) to given point with movement costs
+neighbors12 : Point -> Grid -> List (Point, Float)
+neighbors12 p grid = List.filterMap (neighborFilter grid) (candidates12 p)
+
+candidates20 : Point -> List (Point, Float)
+candidates20 (x, y) = candidates12 (x, y) ++
+  [ ((x+1, y-2), sqrt5)
+  , ((x-1, y-2), sqrt5)
+  , ((x-2, y-1), sqrt5)
+  , ((x-2, y+1), sqrt5)
+  , ((x-1, y+2), sqrt5)
+  , ((x+1, y+2), sqrt5)
+  , ((x+2, y+1), sqrt5)
+  , ((x+2, y-1), sqrt5)
+  ]
+
+neighbors20 : Point -> Grid -> List (Point, Float)
+neighbors20 p grid = List.filterMap (neighborFilter grid) (candidates20 p)
+
+grid2screen : Point -> Grid -> Vec2
+grid2screen p grid = let offset = toFloat (grid.width - 1) / 2 in
   ((toVec2 p .-. (offset, offset)) .* grid.spacing)
 
 gridIndexToScreen : Int -> Grid -> Vec2
-gridIndexToScreen i grid = gridPointToScreen (deindex i grid) grid
+gridIndexToScreen i grid = grid2screen (deindex i grid) grid
 
-screenPointToGrid : Vec2 -> Grid -> Point
-screenPointToGrid s grid = let offset = toFloat (grid.width - 1) / 2 in
+screen2grid : Vec2 -> Grid -> Point
+screen2grid s grid = let offset = toFloat (grid.width - 1) / 2 in
   fromVec2 (s ./ grid.spacing .+. (offset, offset))
 
 drawGrid : Grid -> List Form
@@ -103,6 +153,6 @@ drawGrid grid = ArrayToList.indexedMap (
       Road -> lightCharcoal
       Sand -> lightBrown
       Water -> lightBlue
-      Obstacle -> darkCharcoal) (square (grid.spacing * 0.8)) |>
+      Obstacle -> darkCharcoal) (square (grid.spacing * 0.9)) |>
     move (gridIndexToScreen i grid)
   ) grid.array
