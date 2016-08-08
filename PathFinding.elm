@@ -114,43 +114,7 @@ traceCrumbs p grid crumbs = Array.foldl (\_ (trail, p) -> let
     prev = Array.get (Grid.index p grid) crumbs |> withDefault -1
    in
     if prev < 0 then (trail, p) else (p :: trail, Grid.deindex prev grid)
-  ) ([], p) crumbs |> fst |> List.reverse
-
-type alias PropagateState = { frontier : Heap (Float, Int), heat : Array Float }
-
-initHeat : Float -> Point -> Grid -> PropagateState
-initHeat heat p0 grid = let i0 = Grid.index p0 grid in
-  { frontier = Heap.insert (heat, i0) Heap.Leaf
-  , heat = Array.repeat (Grid.size grid) (0) |> Array.set i0 heat
-  }
-
-propagate : Grid -> PropagateState -> PropagateState
-propagate grid state = case findmin state.frontier of
-  Nothing -> state
-  Just (current_heat, i) ->
-    List.foldl (\(next, _) s -> let
-      j = Grid.index next grid
-      neighbor_heat = Array.get j s.heat |> withDefault (0)
-      neighbor_cost = Grid.cost (Grid.get (Grid.deindex j grid) grid)
-      new_heat = current_heat * 0.9 ^ neighbor_cost
-     in
-      if neighbor_heat < new_heat then
-        { s
-        | frontier = Heap.insert (new_heat, j) s.frontier
-        , heat = Array.set j new_heat s.heat
-        }
-      else s
-    ) { state | frontier = Heap.deletemin state.frontier }
-    (neighbors4 (Grid.deindex i grid) grid)
-
-heatMap : Grid -> Float -> Point -> Array Float
-heatMap grid heat source = let
-  init = initHeat heat source grid
-  step = propagate grid
-  return = .heat
-  loop s = if s.frontier == Heap.Leaf then return s else loop (step s)
- in
-  loop init
+  ) ([], p) crumbs |> fst
 
 
 --- SIMULATION ---

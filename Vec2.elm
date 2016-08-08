@@ -57,31 +57,33 @@ angle (x, y) = atan2 y x
 
 -- norm = magnitude = length
 norm : Vec2 -> Float
-norm p = sqrt (dot p p)
+norm a = sqrt (dot a a)
 
 -- square of norm.  easier to calculate
 sqnorm : Vec2 -> Float
-sqnorm p = dot p p
+sqnorm a = dot a a
 
 -- distance between points, length of vector difference
 dist : Vec2 -> Vec2 -> Float
-dist p q = norm (p .-. q)
+dist a b = norm (b .-. a)
 
 -- unit vector in direction of given vector
 normalize : Vec2 -> Vec2
-normalize p = p ./ norm p
+normalize a = case norm a of
+  0 -> (0, 0)
+  p -> a ./ p
 
--- vector projection (component of p in direction of q)
+-- vector projection (component of a in direction of b)
 project : Vec2 -> Vec2 -> Vec2
-project p q = dot p q / dot q q *. q
+project a b = dot a b / dot b b *. b
 
--- reflection of point/vector p around direction of q
+-- reflection of point/vector a around direction of b
 reflect : Vec2 -> Vec2 -> Vec2
-reflect p q = q .-. 2 *. project p q
+reflect a b = b .-. 2 *. project a b
 
 -- rotate vector around origin by angle
 rotate : Float -> Vec2 -> Vec2
-rotate rad p = let b = (sin rad, cos rad) in (cross p b, dot p b)
+rotate rad a = let b = (sin rad, cos rad) in (cross a b, dot a b)
 
 -- minimum of each vector component
 min2 : Vec2 -> Vec2 -> Vec2
@@ -93,13 +95,13 @@ max2 (x1, y1) (x2, y2) = (max x1 x2, max y1 y2)
 
 -- vector p with magnitude constrained by max and min
 clamp2 : Float -> Float -> Vec2 -> Vec2
-clamp2 min max p = let n = norm p in
-  if n > max then p .* max ./ n else
-    if n < min then p .* min ./ n else p
+clamp2 min max a = let p = norm a in
+  if p > max then a .* max ./ p else
+    if p < min then a .* min ./ p else a
 
 -- mean (average) of vectors
 mean2 : List Vec2 -> Vec2
-mean2 ps = List.foldl (.+.) (0, 0) ps ./ toFloat (List.length ps)
+mean2 vs = List.foldl (.+.) (0, 0) vs ./ toFloat (List.length vs)
 
 
 random : Vec2 -> Vec2 -> Generator Vec2

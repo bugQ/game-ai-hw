@@ -26,7 +26,7 @@ update : Action -> Game -> (Game, Cmd Action)
 update action game =
   ( case action of
       Init g -> g
-      Tick dt -> run (Time.second/30) game
+      Tick dt -> run dt game
       Haunt mouse -> controlMonster (mouseToCanvas mouse) game
   , if game.reset > 0 then Cmd.none else generate Init genGame )
 

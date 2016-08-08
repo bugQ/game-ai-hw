@@ -6,8 +6,8 @@ import Grid exposing (Grid, Point, GridNode(Obstacle),
   toVec2, deindex, screen2grid, grid2screen, drawGrid)
 import PathFinding exposing (AStarState, state0,
   initSearch, drawRunningCosts, drawPath)
-import PathFollowing exposing (
-  Exploration(Plotting, Seeking, Arriving, Resting), maxV, fastExplore, stateColor)
+import PathFollowing exposing (Exploration(..), maxV, explore, stateColor)
+import ChaseEvade exposing (drawTarget)
 import StateMachine exposing (State, Condition, Action, StateMachine,
   addRule, apprise)
 import ArrayToList
@@ -17,7 +17,7 @@ import Random exposing (Generator)
 import Time exposing (Time, inSeconds)
 import Text exposing (Text)
 import Color exposing (..)
-import Collage exposing (Form, text, move)
+import Collage exposing (Form, text, move, solid)
 
 
 --- CONSTANTS ---
@@ -65,7 +65,6 @@ explorer0 =
   { pos = (0.0, 0.0)
   , v = (0.0, 0.0)
   , a = (0.0, 0.0)
-  , search = PathFinding.state0
   , state = Resting
   , inv = []
   }
@@ -112,12 +111,8 @@ rules =
        target = case keys of
          (_, p) :: _ -> p
          [] -> (0, 0)
-      in { dungeon
-       | explorer = { e
-         | state = Plotting target
-         , search = initSearch start dungeon.floor
-         }
-       }
+      in
+       { dungeon | explorer = { e | state = Plotting target } }
      )
    , "Seek Keys"
    )
@@ -138,12 +133,8 @@ rules =
        target = case lockedDoors of
          (_, p) :: _ -> p
          [] -> (0, 0)
-      in { dungeon
-       | explorer = { e
-         | state = Plotting target
-         , search = initSearch start dungeon.floor
-         }
-       }
+      in
+       { dungeon | explorer = { e | state = Plotting target } }
      )
    , "Seek Doors"
    )
@@ -161,12 +152,8 @@ rules =
        target = case chests of  -- there should only be one...
          (_, p) :: _ -> p
          [] -> (0, 0)
-      in { dungeon
-       | explorer = { e
-         | state = Plotting target
-         , search = initSearch start dungeon.floor
-         }
-       }
+      in
+       { dungeon | explorer = { e | state = Plotting target } }
      )
    , "Seek Treasure"
    )
@@ -187,10 +174,7 @@ initDungeon = let
    in
     { floor = grid
     , loot = props
-    , explorer = { explorer0
-      | pos = grid2screen startE grid
-      , search = initSearch startE grid
-      }
+    , explorer = { explorer0 | pos = grid2screen startE grid }
     , monster = { explorer0 | pos = grid2screen startM grid }
     }
   ) genGrid genIndices
@@ -209,8 +193,8 @@ runDungeon t dungeon = let
   grid = dungeon.floor
   e_p = (screen2grid dungeon.explorer.pos grid)
   node = Grid.get e_p grid
-  new_e = dungeon.explorer |> stepActor (maxV node) dt |> fastExplore grid
-  new_m = dungeon.monster |> stepActor (maxV node) dt |> fastExplore grid
+  new_e = dungeon.explorer |> stepActor (maxV node) dt |> explore grid
+  new_m = dungeon.monster |> stepActor (maxV node) dt |> explore grid
   new_dungeon = { dungeon | explorer = new_e, monster = new_m }
   loot = dungeon.loot
  in
@@ -262,8 +246,7 @@ drawDungeon dungeon = let
       ) props
   ++ drawVehicle (stateColor e.state) e
   ++ (case e.state of
-      Plotting goal -> drawRunningCosts
-        e.search.running_cost grid
+      Plotting goal -> drawTarget (solid red) (grid2screen goal grid)
       Seeking path -> [drawPath path grid]
       _ -> [])
 

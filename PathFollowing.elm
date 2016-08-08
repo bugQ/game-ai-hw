@@ -3,10 +3,9 @@ module PathFollowing exposing (..)
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
 import Grid exposing (Grid, GridNode(Road, Sand, Water, Obstacle), Point, Path,
   grid2screen, screen2grid, drawGrid)
-import Heap
 import ChaseEvade exposing (chase, arrive, drawTarget)
 import PathFinding exposing (AStarState,
-  initSearch, aStarStep, traceCrumbs, drawPath, drawRunningCosts)
+  initSearch, aStar, drawPath, drawRunningCosts)
 import Random exposing (Seed, Generator, generate)
 import Random.Array exposing (shuffle)
 import Time exposing (Time, inSeconds)
@@ -15,6 +14,7 @@ import Collage exposing (Form, circle, solid, filled, move, collage)
 import Array exposing (slice)
 import Html exposing (Html)
 import Element exposing (toHtml)
+import List.Extra as List
 
 
 --- CONSTANTS ---
@@ -43,8 +43,7 @@ type Action = Init Simulation | Tick Time | Plot Point
 type Exploration = Plotting Point | Seeking Path | Arriving Point | Resting
 
 type alias SearchState etc = { etc
- | search : AStarState
- , state : Exploration
+ | state : Exploration
  }
 
 type alias Explorer etc = Actor (SearchState etc)
@@ -64,27 +63,18 @@ explore grid e = let
   p = screen2grid e.pos grid
   node = Grid.get p grid
  in case e.state of
-  Plotting goal -> case e.search.frontier of
-    Heap.Leaf -> { e | state = Resting }
-    Heap.Node _ _ -> if e.search.finished
-      then { e | state = Seeking
-          (traceCrumbs goal grid e.search.breadcrumbs |> List.reverse) }
-      else { e | search = aStarStep goal grid e.search }
+  Plotting goal -> { e | state = Seeking (aStar grid p goal) }
   Seeking [] -> { e | state = Resting }
   Seeking [goal] -> { e | state = Arriving goal }
-  Seeking (next :: rest) -> if p == next
-   then { e | state = Seeking rest }
-   else { e | state = Seeking (next :: rest) }
-     |> chase (maxV node) maxA (grid2screen next grid)
+  Seeking (next :: rest) -> let path = next :: rest in
+    case List.dropWhile ((/=) p) path of
+      [] -> e |> chase (maxV node) maxA (grid2screen next grid)
+      [goal] -> { e | state = Arriving goal }
+      _ :: truncatedPath -> { e | state = Seeking truncatedPath }
   Arriving goal -> if p == goal
    then { e | state = Resting }
    else e |> arrive (maxV node) maxA (grid2screen goal grid)
   Resting -> e |> arrive (maxV node) maxA (grid2screen p grid)
-
-fastExplore : Grid -> Explorer etc -> Explorer etc
-fastExplore grid e = let new_e = explore grid e in case new_e.state of
-  Plotting goal -> fastExplore grid new_e
-  _ -> new_e
 
 
 --- SIMULATION ---
@@ -105,7 +95,6 @@ initSim = let
         { pos = grid2screen p grid
         , v = (0, 0)
         , a = (0, 0)
-        , search = initSearch p grid
         , state = Resting
         }
       ) points
@@ -129,12 +118,7 @@ startPlot : Point -> Simulation -> Simulation
 startPlot goal sim = { sim | explorers =
   fst <| List.foldr (\e (es, done) ->
     if not done && e.state == Resting
-      then (
-          { e
-          | state = Plotting goal
-          , search = initSearch (screen2grid e.pos sim.grid) sim.grid
-          } :: es
-        , True )
+      then ({ e | state = Plotting goal } :: es, True)
       else (e :: es, done)
   ) ([], False) sim.explorers }
 
@@ -160,7 +144,6 @@ drawSim sim = toHtml <| collage 600 600 <| drawGrid sim.grid
   ++ case List.head sim.explorers of
     Just e -> (circle 4 |> filled red |> move e.pos) :: case e.state of
       Plotting goal -> drawTarget (solid red) (grid2screen goal sim.grid)
-        ++ drawRunningCosts e.search.running_cost sim.grid
       Seeking path -> [drawPath path sim.grid]
       Arriving goal -> drawTarget (solid red) (grid2screen goal sim.grid)
       Resting -> []

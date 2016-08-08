@@ -1,7 +1,6 @@
 module TreasureGame_BT exposing (..)
 
 import Grid exposing (screen2grid)
-import PathFinding exposing (initSearch)
 import BehaviourTree exposing (..)
 import TreasureGame exposing (Explorer, Dungeon, dungeon0, Prop(Chest),
   isKey, isLockedDoor, initDungeon, runDungeon, drawDungeon)
@@ -11,7 +10,7 @@ import Text
 import Time exposing (Time, inSeconds)
 import Random exposing (Generator)
 import Color exposing (purple)
-import List.Extra as List
+
 
 --- STRUCTURES ---
 
@@ -28,20 +27,12 @@ seekKey dungeon = let
   grid = dungeon.floor
   start = screen2grid e.pos dungeon.floor
   keys = List.filter (fst >> isKey) dungeon.loot
-  success target = ({ dungeon | explorer =
-      { e | search = initSearch start grid, state = Plotting target } }
-   , Success)
-  failure = ({ dungeon | explorer = { e | state = Resting } }, Failure)
  in
   case keys of
-    [] -> failure
+    [] -> ({ dungeon | explorer = { e | state = Resting } }, Failure)
     (_, target) :: _ -> case dungeon.explorer.state of
-      Resting -> success target
-      Seeking path ->
-        (case List.dropWhile ((/=) start) path of
-          [] -> dungeon
-          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
-        , Running)
+      Resting ->
+        ({ dungeon | explorer = { e | state = Plotting target } }, Success)
       _ -> (dungeon, Running)
 
 seekDoor : Routine Dungeon
@@ -50,20 +41,12 @@ seekDoor dungeon = let
   grid = dungeon.floor
   start = screen2grid e.pos dungeon.floor
   lockedDoors = List.filter (fst >> isLockedDoor) dungeon.loot
-  success target = ({ dungeon | explorer =
-      { e | search = initSearch start grid, state = Plotting target } }
-   , Success)
-  failure = ({ dungeon | explorer = { e | state = Resting } }, Failure)
  in
   case lockedDoors of
-    [] -> failure
+    [] -> ({ dungeon | explorer = { e | state = Resting } }, Failure)
     (_, target) :: _ -> case dungeon.explorer.state of
-      Resting -> success target
-      Seeking path ->
-        (case List.dropWhile ((/=) start) path of
-          [] -> dungeon
-          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
-        , Running)
+      Resting ->
+        ({ dungeon | explorer = { e | state = Plotting target } }, Success)
       _ -> (dungeon, Running)
 
 seekTreasure : Routine Dungeon
@@ -75,14 +58,8 @@ seekTreasure dungeon = let
  in
   case chests of
     (_, target) :: _ -> case dungeon.explorer.state of
-      Resting -> ({ dungeon | explorer =
-        { e | search = initSearch start grid, state = Plotting target } }
-       , Success)
-      Seeking path ->
-        (case List.dropWhile ((/=) start) path of
-          [] -> dungeon
-          truncated -> { dungeon | explorer = { e | state = Seeking truncated }}
-        , Running)
+      Resting ->
+        ({ dungeon | explorer = { e | state = Plotting target } }, Success)
       _ -> (dungeon, Running)
     [] -> (dungeon, Success)
 
