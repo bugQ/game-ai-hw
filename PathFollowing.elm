@@ -1,8 +1,8 @@
 module PathFollowing exposing (..)
 
 import ClassicalEngine exposing (Actor, stepActor, drawVehicle)
-import Grid exposing (Grid, GridNode(Road, Sand, Water, Obstacle), Point, Path,
-  grid2screen, screen2grid, drawGrid)
+import Grid exposing (Grid, GridNode(..), Point, Path,
+  grid2screen, screen2grid, neighbors8, drawGrid)
 import ChaseEvade exposing (chase, arrive, drawTarget)
 import PathFinding exposing (AStarState,
   initSearch, aStar, drawPath, drawRunningCosts)
@@ -63,7 +63,7 @@ explore grid e = let
   p = screen2grid e.pos grid
   node = Grid.get p grid
  in case e.state of
-  Plotting goal -> { e | state = Seeking (aStar grid p goal) }
+  Plotting goal -> { e | state = Seeking (aStar neighbors8 grid p goal) }
   Seeking [] -> { e | state = Resting }
   Seeking [goal] -> { e | state = Arriving goal }
   Seeking (next :: rest) -> let path = next :: rest in

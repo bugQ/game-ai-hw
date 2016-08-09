@@ -59,7 +59,7 @@ seekTreasure dungeon = let
   case chests of
     (_, target) :: _ -> case dungeon.explorer.state of
       Resting ->
-        ({ dungeon | explorer = { e | state = Plotting target } }, Success)
+        ({ dungeon | explorer = { e | state = Plotting target } }, Running)
       _ -> (dungeon, Running)
     [] -> (dungeon, Success)
 

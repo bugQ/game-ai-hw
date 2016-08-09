@@ -9,7 +9,7 @@ import PathFinding exposing (AStarState,
   state0, initSearch, aStar, drawPath, inf)
 import PathFollowing exposing (Exploration(..), maxA, maxV)
 import BehaviourTree exposing (Behaviour)
-import HeatMap exposing (heatNav, heatProxMap)
+import HeatMap exposing (heatNav, heatProx)
 import Grid exposing (Grid, Point,
   manhattan, neighbors4, neighbors20, screen2grid, grid2screen)
 import Vec2 exposing (..)
@@ -82,15 +82,16 @@ heatSeek grid heatMap actor = let
   --List.foldl (.+.) (0, 0) |> (\v -> if (v == (0,0)) then v else normalize v)
 -}
 
-heatSeek : Grid -> Array Float -> Actor etc -> Actor etc
-heatSeek grid heatMap actor = let
+heatSeek : Grid -> Array Float -> Array Float -> Actor etc -> Actor etc
+heatSeek grid heatMap dangerMap actor = let
   (x, y) = actor.pos
   p = screen2grid (clamp -300 300 x, clamp -300 300 y) grid
   hotNeighbors = neighbors20 p grid
-    |> List.filterMap ( \(point, dist) ->
-      Array.get (Grid.index point grid) heatMap
-      |> Maybe.map (\good -> (good, point, dist))
-      )
+    |> List.filterMap ( \(point, dist) -> let i = Grid.index point grid in
+        Array.get i heatMap `Maybe.andThen` (\good ->
+          Array.get i dangerMap `Maybe.andThen` (\bad ->
+            Just (good - bad, point, dist)
+      )))
   (_, localGoal, _) = List.maximum hotNeighbors |> Maybe.withDefault (0, p, 0)
 {-(_, target) = hotNeighbors
   |> List.filterMap ( \(good, point, dist) -> if dist > 1 then Nothing else
@@ -133,11 +134,12 @@ run t game = if game.score /= 0 then { game | reset = game.reset - t } else
   eMaxV = maxV (Grid.get (screen2grid explorer.pos floor) floor)
   mp = screen2grid monster.pos floor
   goalMap = case explorer.state of
-    Plotting goal -> heatNav floor 1 goal
+    Plotting goal -> heatNav floor goalHeat goal
     _ -> game.goalMap
-  monsterMap = if mp == game.prevMonPoint then game.monsterMap else
-    heatProxMap floor -1 mp goalMap
-  new_e = heatSeek floor monsterMap <| case explorer.state of
+  monsterMap = if mp == game.prevMonPoint
+      then game.monsterMap
+    else heatProx floor monsterHeat mp
+  new_e = heatSeek floor goalMap monsterMap <| case explorer.state of
     Plotting goal -> { explorer | state = Arriving goal }
     _ -> explorer
   new_game = { game

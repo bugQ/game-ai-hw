@@ -8,7 +8,7 @@ import Text exposing (Text, fromString)
 import Color exposing (red, green, lightYellow)
 import ArrayToList exposing (indexedFilter)
 import Grid exposing (Grid, grid0, Point, GridNode, Path, inGrid,
-  manhattan, neighbors4, grid2screen, gridIndexToScreen, drawGrid)
+  manhattan, neighbors8, grid2screen, gridIndexToScreen, drawGrid)
 import Random exposing (Seed, Generator, generate)
 import Heap exposing (Heap, findmin, deletemin)
 import String exposing (left)
@@ -64,6 +64,8 @@ state0 =
 
 type alias Heuristic = Point -> Point -> Float -> Float
 
+type alias NeighborFinder = Point -> Grid -> List (Point, Float)
+
 --- BEHAVIOR ---
 
 initSearch : Point -> Grid -> AStarState
@@ -74,8 +76,8 @@ initSearch p0 grid = let i0 = Grid.index p0 grid in
  , finished = False
  }
 
-aStarStep : Point -> Grid -> AStarState -> AStarState
-aStarStep goal grid state = if state.finished then state else let
+aStarStep : NeighborFinder -> Point -> Grid -> AStarState -> AStarState
+aStarStep neighbors goal grid state = if state.finished then state else let
   frontier = state.frontier  -- view entire heap in debugger
   (_, i) = findmin frontier |> withDefault (0.0, -1)
   current_cost = (Array.get i state.running_cost |> withDefault -1)
@@ -98,12 +100,12 @@ aStarStep goal grid state = if state.finished then state else let
         }
       else s)
     poppedState
-    (neighbors4 (Grid.deindex i grid) grid)
+    (neighbors (Grid.deindex i grid) grid)
 
-aStar : Grid -> Point -> Point -> List Point
-aStar grid start goal = let
+aStar : NeighborFinder -> Grid -> Point -> Point -> List Point
+aStar neighbors grid start goal = let
   init = initSearch start grid
-  step = aStarStep goal grid
+  step = aStarStep neighbors goal grid
   return = traceCrumbs goal grid << .breadcrumbs
   loop s = if s.finished then return s else loop (step s)
  in
@@ -150,7 +152,8 @@ simulate sim = if sim.restart <= 0 then sim else let s = stepSearch sim in
   { s | restart = if s.search.finished then s.restart - 1 else s.restart }
 
 stepSearch : Simulation -> Simulation
-stepSearch sim = { sim | search = aStarStep sim.goal sim.grid sim.search }
+stepSearch sim =
+  { sim | search = aStarStep neighbors8 sim.goal sim.grid sim.search }
 
 
 --- DRAWING ---
