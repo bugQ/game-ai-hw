@@ -1,0 +1,153 @@
+<!DOCTYPE HTML>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Homework</title>
+</head>
+<body>
+<h1>bug's game AI homework</h1>
+<p>completed using <a href="http://elm-lang.org/">Elm</a> 0.17
+  (<a href="elm-package.json">external dependencies</a>)
+<pre>for hw in hw*.elm ; do elm make "$hw" --output="${hw%.elm}.html" ; done</pre></p>
+<nav><ol>
+<li>
+<details><summary><a href="hw1.html">Chase/Evade</a></summary>
+<p>Source files:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <strong><a href="ChaseEvade.elm">ChaseEvade.elm</a></strong>,
+  <a href="hw1.elm">hw1.elm</a>.
+</p>
+</details></li>
+<li><details><summary><a href="hw2.html">Obstacle Avoidance</a></summary>
+<p>Source files:
+  <strong><a href="CircleAvoid.elm">CircleAvoid.elm</a></strong>,
+  <a href="hw2.elm">hw2.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="hw3.html">Flocking</a></summary>
+<p>Source files:
+  <strong><a href="Flocking.elm">Flocking.elm</a></strong>,
+  <a href="hw3.elm">hw3.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="hw4.html">Path Finding</a></summary>
+<p>Source files:
+  <a href="ArrayToList.elm">ArrayToList.elm</a>,
+  <a href="Grid.elm">Grid.elm</a>,
+  <strong><a href="Heap.elm">Heap.elm</a></strong>,
+  <strong><a href="PathFinding.elm">PathFinding.elm</a></strong>,
+  <a href="hw4.elm">hw4.elm</a>.
+</p>
+</details></li>
+<li><details><summary><a href="hw5.html">Path Following</a></summary>
+<p>Source files:
+  <strong><a href="PathFollowing.elm">PathFollowing.elm</a></strong>,
+  <a href="hw5.elm">hw5.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <a href="ChaseEvade.elm">ChaseEvade.elm</a>,
+  <a href="ArrayToList.elm">ArrayToList.elm</a>,
+  <a href="Grid.elm">Grid.elm</a>,
+  <a href="Heap.elm">Heap.elm</a>,
+  <a href="PathFinding.elm">PathFinding.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="hw6.html">State Machines</a></summary>
+<p>Source files:
+  <strong><a href="StateMachine.elm">StateMachine.elm</a></strong>,
+  <strong><a href="TreasureGame.elm">TreasureGame.elm</a></strong>
+  <a href="hw6.elm">hw6.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <a href="ChaseEvade.elm">ChaseEvade.elm</a>,
+  <a href="ArrayToList.elm">ArrayToList.elm</a>,
+  <a href="Grid.elm">Grid.elm</a>,
+  <a href="Heap.elm">Heap.elm</a>,
+  <a href="PathFinding.elm">PathFinding.elm</a>,
+  <a href="PathFollowing.elm">PathFollowing.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="hw7.html">Behavior Trees</a></summary>
+<p>Source files:
+  <strong><a href="BehaviourTree.elm">BehaviourTree.elm</a></strong>,
+  <strong><a href="TreasureGame_BT.elm">TreasureGame_BT.elm</a></strong>,
+  <a href="hw7.elm">hw7.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <a href="ChaseEvade.elm">ChaseEvade.elm</a>,
+  <a href="ArrayToList.elm">ArrayToList.elm</a>,
+  <a href="Grid.elm">Grid.elm</a>,
+  <a href="Heap.elm">Heap.elm</a>,
+  <a href="PathFinding.elm">PathFinding.elm</a>,
+  <a href="PathFollowing.elm">PathFollowing.elm</a>,
+  <a href="TreasureGame.elm">TreasureGame.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a>Group Logic</a></summary>
+<p>Uncompleted.</p>
+</details></li>
+<li><details><summary><a>Minimax</a></summary>
+<p>Uncompleted.</p>
+</details></li>
+<li><details><summary><a href="hw10.html">Genetic Algorithms</a></summary>
+<p>Source files:
+  <strong><a href="Genetics.elm">Genetics.elm</a></strong>,
+  <strong><a href="Tanks.elm">Tanks.elm</a></strong>,
+  <a href="hw10.elm">hw10.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="hw11.html">Neural Networks</a></summary>
+<p>Source files:
+  <a href="Matrix/Extra.elm">Matrix/Extra.elm</a>,
+  <strong><a href="NeuralNet.elm">NeuralNet.elm</a></strong>,
+  <strong><a href="NeuroTanks.elm">NeuroTanks.elm</a></strong>,
+  <a href="hw11.elm">hw11.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <a href="Genetics.elm">Genetics.elm</a>.
+</small></p>
+</details></li>
+<li><details><summary><a href="Final.html">Final (MonsterGame)</a></summary>
+<p>Source files:
+  <strong><a href="HeatMap.elm">HeatMap.elm</a></strong>,
+  <strong><a href="MonsterGame.elm">MonsterGame.elm</a></strong>,
+  <a href="Final.elm">Final.elm</a>.
+</p>
+<p><small>Dependencies:
+  <a href="Vec2.elm">Vec2.elm</a>,
+  <a href="ClassicalEngine.elm">ClassicalEngine.elm</a>,
+  <a href="ChaseEvade.elm">ChaseEvade.elm</a>,
+  <a href="ArrayToList.elm">ArrayToList.elm</a>,
+  <a href="Grid.elm">Grid.elm</a>,
+  <a href="Heap.elm">Heap.elm</a>,
+  <a href="PathFinding.elm">PathFinding.elm</a>,
+  <a href="PathFollowing.elm">PathFollowing.elm</a>,
+  <a href="TreasureGame.elm">TreasureGame.elm</a>,
+  <a href="BehaviourTree.elm">BehaviourTree.elm</a>,
+  <a href="TreasureGame_BT.elm">TreasureGame_BT.elm</a>.
+</small></p>
+</details></li>
+</ol></nav>
+</body>
+</html>

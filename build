@@ -1,0 +1,2 @@
+#!/bin/sh
+for hw in hw*.elm ; do elm make "$hw" --output="${hw%.elm}.html" ; done

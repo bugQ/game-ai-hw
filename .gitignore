@@ -1,8 +1,3 @@
 /elm-stuff/
-*.html
-*.js
+hw*.html
 .vs
-flag/*.csproj
-flag/*.sln
-flag/Library
-flag/Temp
