@@ -58,30 +58,6 @@ monsterHeat = 1
 
 --- BEHAVIOR ---
 
-{-
-heatSeek : Grid -> Array Float -> Actor etc -> Actor etc
-heatSeek grid heatMap actor = let
-  (x, y) = actor.pos
-  point = screen2grid (clamp -300 300 x, clamp -300 300 y) grid
-  filterer : (Grid.Point, Float) -> Maybe (Float, Grid.Point)
-  filterer = ( \(p, _) ->
-      Array.get (Grid.index p grid) heatMap
-        |> Maybe.map (\c -> (c, p))
-    )
-  (_, localGoal) = neighbors20 point grid
-    |> List.filterMap filterer
-    |> List.maximum |> Maybe.withDefault (0, point)
-  (_, target) = neighbors4 point grid
-    |> List.filterMap ( \(p, _) ->
-        Array.get (Grid.index p grid) heatMap
-          |> Maybe.map (\c -> (c - toFloat (manhattan p localGoal), p))
-      )
-    |> List.maximum |> Maybe.withDefault (0, point)
- in
-  chase (maxV (Grid.get point grid)) maxA (grid2screen target grid) actor
-  --List.foldl (.+.) (0, 0) |> (\v -> if (v == (0,0)) then v else normalize v)
--}
-
 heatSeek : Grid -> Array Float -> Array Float -> Actor etc -> Actor etc
 heatSeek grid heatMap dangerMap actor = let
   (x, y) = actor.pos
@@ -93,11 +69,6 @@ heatSeek grid heatMap dangerMap actor = let
             Just (good - bad, point, dist)
       )))
   (_, localGoal, _) = List.maximum hotNeighbors |> Maybe.withDefault (0, p, 0)
-{-(_, target) = hotNeighbors
-  |> List.filterMap ( \(good, point, dist) -> if dist > 1 then Nothing else
-        Just (good - toFloat (manhattan p localGoal), point) )
-  |> List.maximum |> Maybe.withDefault (0, p)
--}
   (_, target) = hotNeighbors
     |> List.filterMap ( \(good, point, _) -> case manhattan point p of
         1 -> Just (good - toFloat (manhattan point localGoal), point)
@@ -106,7 +77,6 @@ heatSeek grid heatMap dangerMap actor = let
     |> List.maximum |> Maybe.withDefault (0, p)
  in
   chase (maxV (Grid.get p grid)) maxA (grid2screen target grid) actor
-  --List.foldl (.+.) (0, 0) |> (\v -> if (v == (0,0)) then v else normalize v)
 
 
 --- SIMULATION ---
